@@ -91,7 +91,9 @@ export default function Home() {
         timestamp: new Date(),
         location: location, 
         status: "Unverified",
-        language: lang 
+        language: lang,
+        requiresAgent: false, // Default
+        bountyAmount: "0" 
       });
       setSubmittedId(newTrackingId);
       setLoadingReport(false);
@@ -113,7 +115,7 @@ export default function Home() {
     } catch (err) { setTrackError("Error"); }
   };
 
-  // --- LOGIC: RIDE GUARD (DEAD MAN SWITCH) ---
+  // --- LOGIC: RIDE GUARD ---
   const startRide = () => { setRideStatus('active'); setTimer(rideDetails.time * 60); };
   const endRideSafe = () => { setRideStatus('safe'); };
   
@@ -133,7 +135,7 @@ export default function Home() {
     return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
   };
 
-  // --- LOGIC: SAFE ZONES HEATMAP ---
+  // --- LOGIC: SAFE ZONES ---
   const fetchSafetyData = async () => {
     setLoadingSafe(true);
     try {
@@ -188,7 +190,7 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-slate-50 font-sans text-slate-900">
       
-      {/* FEATURE: SOS FLOATING BUTTON (FIXED Z-INDEX) */}
+      {/* FEATURE: SOS FLOATING BUTTON */}
       <a 
         href="tel:100" 
         className="fixed bottom-6 right-6 bg-red-600 text-white w-16 h-16 rounded-full flex items-center justify-center shadow-lg border-4 border-red-200 animate-pulse z-[100] hover:scale-110 transition cursor-pointer"
@@ -252,7 +254,6 @@ export default function Home() {
                 </select>
               </div>
 
-              {/* FEATURE: VOICE UI */}
               <div>
                  <div className="flex justify-between items-end mb-1">
                     <label className="text-xs font-bold text-slate-500 uppercase">{t.descLabel}</label>
@@ -263,7 +264,6 @@ export default function Home() {
                  <textarea placeholder={t.descPlace} value={desc} onChange={(e) => setDesc(e.target.value)} className="w-full bg-slate-50 p-3 rounded-xl text-sm h-24" required />
               </div>
 
-              {/* FEATURE: EVIDENCE UPLOAD UI */}
               <div className="border-2 border-dashed border-slate-200 rounded-xl p-4 text-center hover:bg-slate-50 transition cursor-pointer" onClick={() => alert("File upload will be enabled in the next update!")}>
                  <p className="text-xs text-blue-500 font-bold">📸 Attach Photo / Video Evidence</p>
               </div>
@@ -364,49 +364,50 @@ export default function Home() {
         </div>
       </main>
       
-      {/* FEATURE: KAVALAN SOS FOOTER (FIXED Z-INDEX) */}
       <footer className="text-center py-12 bg-white border-t border-slate-100 mt-10 relative z-10">
-        <div className="mb-8">
-          <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4">
-            For Immediate Police Emergency
+        
+        {/* PARTNER LOGIN LINK */}
+        <div className="flex justify-center gap-6 mb-8">
+            <Link href="/admin">
+               <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest hover:text-slate-600 cursor-pointer">
+                 {t.adminLogin}
+               </span>
+            </Link>
+            <span className="text-slate-200">|</span>
+            <Link href="/tasks">
+               <span className="text-[10px] font-bold text-yellow-600 uppercase tracking-widest hover:text-yellow-700 cursor-pointer">
+                 🕵️ Guardian Partner Login
+               </span>
+            </Link>
+        </div>
+
+        {/* KAAVAL UTHAVI LINKS */}
+        <div className="mb-4">
+          <p className="text-[10px] font-bold text-slate-300 uppercase tracking-widest mb-4">
+            Official TN Police App
           </p>
           <div className="flex flex-wrap justify-center gap-4">
-            
-            {/* Android Link - Kaaval Uthavi */}
             <a 
               href="https://play.google.com/store/apps/details?id=com.amtexsystems.kaavaluthavi" 
               target="_blank" 
               rel="noopener noreferrer"
-              className="flex items-center gap-2 bg-slate-100 hover:bg-slate-200 text-slate-800 px-5 py-3 rounded-xl transition shadow-sm cursor-pointer"
+              className="flex items-center gap-2 bg-slate-50 hover:bg-slate-100 text-slate-600 px-4 py-2 rounded-lg transition border border-slate-100"
             >
-              <span className="text-xl">🤖</span>
-              <div className="text-left">
-                <p className="text-[10px] font-bold uppercase leading-none text-slate-500">Get it on</p>
-                <p className="text-sm font-bold leading-none">Google Play</p>
-              </div>
+              <span className="text-lg">🤖</span>
+              <span className="text-xs font-bold">Google Play</span>
             </a>
             
-            {/* iOS Link - Kaaval Uthavi */}
             <a 
               href="https://apps.apple.com/in/app/kaaval-uthavi/id1388361252" 
               target="_blank" 
               rel="noopener noreferrer"
-              className="flex items-center gap-2 bg-slate-100 hover:bg-slate-200 text-slate-800 px-5 py-3 rounded-xl transition shadow-sm cursor-pointer"
+              className="flex items-center gap-2 bg-slate-50 hover:bg-slate-100 text-slate-600 px-4 py-2 rounded-lg transition border border-slate-100"
             >
-              <span className="text-xl">🍎</span>
-              <div className="text-left">
-                <p className="text-[10px] font-bold uppercase leading-none text-slate-500">Download on the</p>
-                <p className="text-sm font-bold leading-none">App Store</p>
-              </div>
+              <span className="text-lg">🍎</span>
+              <span className="text-xs font-bold">App Store</span>
             </a>
-
           </div>
-          <p className="text-[10px] text-slate-400 mt-2">Official App: Kaaval Uthavi (TN Police)</p>
         </div>
-
-        <Link href="/admin">
-           <button className="text-[10px] font-bold text-slate-300 hover:text-slate-500 uppercase tracking-widest transition cursor-pointer">{t.adminLogin}</button>
-        </Link>
       </footer>
     </div>
   );
