@@ -1,237 +1,207 @@
 "use client"
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { db } from '../../firebase';
 import { collection, query, orderBy, getDocs, doc, updateDoc, deleteDoc, addDoc } from 'firebase/firestore';
 
 export default function AdminPanel() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [password, setPassword] = useState('');
+  
+  // Tabs: 'reports' or 'applications'
+  const [tab, setTab] = useState('reports'); 
+  
   const [reports, setReports] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [applications, setApplications] = useState([]);
+  const [loading, setLoading] = useState(false);
 
-  // --- 1. FETCH REPORTS ---
-  const fetchReports = async () => {
+  // --- FETCH ALL DATA ---
+  const fetchData = async () => {
     setLoading(true);
     try {
-      const q = query(collection(db, "reports"), orderBy("timestamp", "desc"));
-      const querySnapshot = await getDocs(q);
-      const list = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      setReports(list);
-    } catch (error) {
-      console.error("Error fetching reports:", error);
-    }
+      // 1. Fetch Reports
+      const q1 = query(collection(db, "reports"), orderBy("timestamp", "desc"));
+      const snap1 = await getDocs(q1);
+      setReports(snap1.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+
+      // 2. Fetch Guardian Applications
+      const q2 = query(collection(db, "guardian_applications"), orderBy("timestamp", "desc"));
+      const snap2 = await getDocs(q2);
+      setApplications(snap2.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    } catch (error) { console.error(error); }
     setLoading(false);
   };
 
-  // --- 2. UPDATE STATUS ---
+  // --- REPORT ACTIONS ---
   const handleUpdateStatus = async (id, newStatus) => {
-    try {
-      const reportRef = doc(db, "reports", id);
-      await updateDoc(reportRef, { status: newStatus });
-      alert(`Status updated to: ${newStatus}`);
-      fetchReports();
-    } catch (error) {
-      alert("Failed to update status");
-    }
+    await updateDoc(doc(db, "reports", id), { status: newStatus });
+    alert(`Status updated: ${newStatus}`); fetchData();
   };
 
-  // --- 3. ADD NOTE ---
   const handleAddNote = async (id, currentNote) => {
-    const note = prompt("Enter Note for User:", currentNote || "");
-    if (note !== null) {
-      try {
-        const reportRef = doc(db, "reports", id);
-        await updateDoc(reportRef, { adminNote: note });
-        fetchReports();
-      } catch (error) {
-        console.error("Error adding note:", error);
-      }
-    }
+    const note = prompt("Enter Note:", currentNote || "");
+    if (note) { await updateDoc(doc(db, "reports", id), { adminNote: note }); fetchData(); }
   };
 
-  // --- 4. MAGIC: CLEAR DATABASE ---
+  // --- GUARDIAN ACTIONS ---
+  const handleApproveGuardian = async (app) => {
+    const badgeId = "G-" + Math.floor(1000 + Math.random() * 9000); 
+    
+    // Add to authorized list
+    await addDoc(collection(db, "guardians"), {
+        name: app.name,
+        badgeId: badgeId,
+        skills: app.skills,
+        joined: new Date()
+    });
+
+    // Update application status
+    await updateDoc(doc(db, "guardian_applications", app.id), { status: "Approved", badgeId: badgeId });
+    
+    alert(`Guardian Approved!\nBADGE ID: ${badgeId}`);
+    fetchData();
+  };
+
+  // --- MAGIC TOOLS ---
   const handleClearDatabase = async () => {
-    if(!confirm("⚠️ WARNING: This will delete ALL reports in the system. Are you sure?")) return;
-    
+    if(!confirm("⚠️ DELETE ALL REPORTS?")) return;
     setLoading(true);
-    try {
-      const q = query(collection(db, "reports"));
-      const snapshot = await getDocs(q);
-      const deletePromises = snapshot.docs.map(d => deleteDoc(doc(db, "reports", d.id)));
-      await Promise.all(deletePromises);
-      alert("✅ Database Cleared!");
-      fetchReports();
-    } catch (e) {
-      alert("Error clearing data");
-      setLoading(false);
-    }
+    const q = query(collection(db, "reports"));
+    const snapshot = await getDocs(q);
+    const deletePromises = snapshot.docs.map(d => deleteDoc(doc(db, "reports", d.id)));
+    await Promise.all(deletePromises);
+    alert("Database Cleared!");
+    fetchData();
   };
 
-  // --- 5. MAGIC: INJECT DEMO DATA ---
   const handleSeedData = async () => {
-    if(!confirm("Generate 20 Realistic Reports for Chennai?")) return;
+    if(!confirm("Inject 20 Fake Reports?")) return;
     setLoading(true);
     
-    // Fake data logic
     const demoData = [
-      { cat: "Harassment", area: "Anna Nagar", desc: "Group of men following women near park." },
-      { cat: "Chain Snatching", area: "Anna Nagar", desc: "Bikeborne thieves snatched chain." },
-      { cat: "Harassment", area: "Anna Nagar", desc: "Verbal abuse near bus stop." }, 
-      { cat: "Cyber Fraud", area: "Adyar", desc: "Bank OTP scam call received." },
-      { cat: "Street Light Issue", area: "Adyar", desc: "Whole street is dark, unsafe." },
-      { cat: "Theft", area: "T. Nagar", desc: "Shop theft reported in crowded area." },
-      { cat: "Public Nuisance", area: "T. Nagar", desc: "Drunk people creating scene." },
-      { cat: "Rash Driving", area: "Avadi", desc: "Bike racing on main road." },
-      { cat: "Suspicious Activity", area: "Velachery", desc: "Unknown van parked for 2 days." },
-      { cat: "Noise Complaint", area: "Mylapore", desc: "Loudspeakers after 10 PM." },
-      { cat: "Rash Driving", area: "Guindy", desc: "Car driving wrong side." },
-      { cat: "Harassment", area: "Tambaram", desc: "Eve teasing near college." },
-      { cat: "Theft", area: "Anna Nagar", desc: "Mobile phone stolen." },
-      { cat: "Public Nuisance", area: "Marina Beach", desc: "Fighting in public." },
-      { cat: "Chain Snatching", area: "Besant Nagar", desc: "Morning walker targeted." },
-      { cat: "Street Light Issue", area: "Perambur", desc: "Street lights not working for a week." },
-      { cat: "Cyber Fraud", area: "Online", desc: "Fake link sent via WhatsApp." },
-      { cat: "Suspicious Activity", area: "Koyambedu", desc: "Person taking photos of houses." },
-      { cat: "Rash Driving", area: "ECR", desc: "Speeding cars endangering public." },
-      { cat: "Harassment", area: "Nungambakkam", desc: "Stalking incident reported." }
+      { cat: "Harassment", area: "Anna Nagar", desc: "Verbal abuse near park." },
+      { cat: "Chain Snatching", area: "Anna Nagar", desc: "Bike thieves snatched chain." },
+      { cat: "Harassment", area: "Anna Nagar", desc: "Stalking reported." }, 
+      { cat: "Cyber Fraud", area: "Adyar", desc: "Bank OTP scam." },
+      { cat: "Street Light Issue", area: "Adyar", desc: "Dark street." },
+      { cat: "Theft", area: "T. Nagar", desc: "Shop theft." },
+      { cat: "Rash Driving", area: "Avadi", desc: "Bike racing." },
+      { cat: "Suspicious Activity", area: "Velachery", desc: "Unknown van parked." },
+      { cat: "Rash Driving", area: "Guindy", desc: "Wrong side driving." },
+      { cat: "Harassment", area: "Tambaram", desc: "Eve teasing." }
     ];
 
-    const promises = demoData.map(item => 
-      addDoc(collection(db, "reports"), {
-        trackingId: "DEMO-" + Math.floor(Math.random() * 10000),
-        category: item.cat,
-        area: item.area,
-        description: item.desc,
-        status: "Unverified",
-        timestamp: new Date(),
-        language: "en",
-        location: null // No GPS for fake data
-      })
-    );
+    // Create 20 items (looping through demoData)
+    const promises = [];
+    for(let i=0; i<20; i++) {
+        const item = demoData[i % demoData.length];
+        promises.push(addDoc(collection(db, "reports"), {
+            trackingId: "DEMO-" + Math.floor(Math.random() * 10000),
+            category: item.cat,
+            area: item.area,
+            description: item.desc,
+            status: "Unverified",
+            timestamp: new Date(),
+            language: "en",
+            location: null 
+        }));
+    }
 
     await Promise.all(promises);
-    alert("✅ 20 Demo Reports Added! Check the Safe Zones tab.");
-    fetchReports();
+    alert("✅ 20 Demo Reports Added!");
+    fetchData();
   };
 
-  // --- LOGIN CHECK ---
-  const handleLogin = (e) => {
-    e.preventDefault();
-    if (password === "police123") {
-      setIsLoggedIn(true);
-      fetchReports();
-    } else {
-      alert("Wrong Password");
-    }
-  };
+  // --- LOGIN ---
+  const handleLogin = (e) => { e.preventDefault(); if (password === "police123") { setIsLoggedIn(true); fetchData(); } else alert("Wrong Password"); };
 
-  // --- RENDER LOGIN ---
-  if (!isLoggedIn) {
-    return (
-      <div className="min-h-screen bg-gray-900 flex items-center justify-center p-4">
-        <form onSubmit={handleLogin} className="bg-white p-8 rounded shadow-lg w-full max-w-sm">
-          <h1 className="text-xl font-bold mb-4 text-center">👮‍♂️ Police Login</h1>
-          <input 
-            type="password" 
-            placeholder="Enter Access Code" 
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            className="border p-2 w-full mb-4 text-black"
-          />
-          <button type="submit" className="bg-blue-900 text-white p-2 w-full rounded font-bold hover:bg-blue-800">
-            Access Portal
-          </button>
-        </form>
-      </div>
-    );
-  }
+  if (!isLoggedIn) return <div className="min-h-screen bg-gray-900 flex items-center justify-center"><form onSubmit={handleLogin} className="bg-white p-8 rounded"><h1 className="text-xl font-bold mb-4">👮‍♂️ Police Login</h1><input type="password" value={password} onChange={e=>setPassword(e.target.value)} className="border p-2 w-full mb-4"/><button className="bg-blue-900 text-white p-2 w-full rounded">Login</button></form></div>;
 
-  // --- RENDER DASHBOARD ---
   return (
-    <div className="min-h-screen bg-gray-100 p-8">
+    <div className="min-h-screen bg-gray-100 p-8 font-sans">
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold text-blue-900">👮‍♂️ Police Dispatch Control</h1>
-        <button onClick={() => setIsLoggedIn(false)} className="text-red-600 underline text-sm">Logout</button>
+        <h1 className="text-3xl font-bold text-blue-900">👮‍♂️ HQ Control</h1>
+        <button onClick={() => setIsLoggedIn(false)} className="text-red-600 underline">Logout</button>
       </div>
 
-      {/* --- NEW: ADMIN TOOLS SECTION --- */}
-      <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200 mb-8">
-        <h3 className="font-bold text-slate-800 mb-2">🛠️ Demo Tools (For Presentation)</h3>
-        <div className="flex gap-4">
-            <button 
-                onClick={handleClearDatabase} 
-                className="bg-red-50 text-red-600 border border-red-200 px-4 py-2 rounded-lg font-bold text-sm hover:bg-red-100 transition"
-            >
-                🗑️ Wipe Database
-            </button>
-            <button 
-                onClick={handleSeedData} 
-                className="bg-purple-50 text-purple-600 border border-purple-200 px-4 py-2 rounded-lg font-bold text-sm hover:bg-purple-100 transition"
-            >
-                ✨ Inject 20 Fake Reports
-            </button>
+      {/* MAGIC TOOLS */}
+      <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200 mb-6 flex justify-between items-center">
+        <h3 className="font-bold text-slate-700">🛠️ Demo Tools</h3>
+        <div className="flex gap-2">
+          <button onClick={handleClearDatabase} className="bg-red-50 text-red-600 border border-red-200 px-3 py-1 rounded text-xs font-bold hover:bg-red-100">🗑️ Wipe Data</button>
+          <button onClick={handleSeedData} className="bg-purple-50 text-purple-600 border border-purple-200 px-3 py-1 rounded text-xs font-bold hover:bg-purple-100">✨ Inject Fake Data</button>
         </div>
       </div>
 
-      {loading ? (
-        <p className="text-center text-gray-500">Loading reports...</p>
-      ) : (
-        <div className="grid gap-6 max-w-4xl mx-auto">
-          {reports.map((report) => (
-            <div key={report.id} className="bg-white p-6 rounded shadow border-l-4 border-blue-900">
-              
-              {/* Header */}
-              <div className="flex justify-between items-start mb-4">
-                <div>
-                  <span className="font-mono text-xs bg-gray-200 px-2 py-1 rounded text-black">ID: {report.trackingId}</span>
-                  <div className="flex items-center gap-2 mt-1">
-                    <h2 className="text-xl font-bold text-red-600">{report.category}</h2>
-                    <span className="text-xs font-bold bg-blue-50 text-blue-600 px-2 py-1 rounded border border-blue-100">{report.area}</span>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <span className={`px-3 py-1 rounded-full text-sm font-bold ${
-                    report.status === 'Verified' ? 'bg-green-100 text-green-800' : 
-                    report.status === 'False Alarm' ? 'bg-red-100 text-red-800' : 
-                    'bg-yellow-100 text-yellow-800'
-                  }`}>
-                    {report.status}
-                  </span>
-                </div>
-              </div>
+      {/* TABS */}
+      <div className="flex gap-2 mb-6">
+        <button onClick={() => setTab('reports')} className={`px-6 py-2 rounded-lg font-bold transition ${tab === 'reports' ? 'bg-blue-900 text-white' : 'bg-white text-slate-600 shadow-sm'}`}>
+            Incidents
+        </button>
+        <button onClick={() => setTab('applications')} className={`px-6 py-2 rounded-lg font-bold transition ${tab === 'applications' ? 'bg-blue-900 text-white' : 'bg-white text-slate-600 shadow-sm'}`}>
+            Applications <span className="bg-yellow-400 text-black text-[10px] px-1.5 py-0.5 rounded-full ml-1">{applications.filter(a => a.status === 'Pending').length}</span>
+        </button>
+      </div>
 
-              {/* Description */}
-              <p className="text-gray-700 mb-2">{report.description}</p>
-              
-              {/* Location Link */}
-              {report.location ? (
-                 <a href={`https://www.google.com/maps?q=${report.location.lat},${report.location.lng}`} target="_blank" rel="noreferrer" className="text-blue-600 underline text-sm block mb-4">
-                   📍 Open GPS Location
-                 </a>
-              ) : (
-                 <p className="text-xs text-gray-400 mb-4 italic">No GPS Data</p>
-              )}
-
-              {/* Buttons */}
-              <div className="mt-4 pt-4 border-t flex flex-wrap gap-2 bg-gray-50 p-3 rounded">
-                <span className="text-xs font-bold text-gray-500 uppercase mr-2 w-full mb-1">Update Status:</span>
-                <button onClick={() => handleUpdateStatus(report.id, "Verified")} className="bg-green-600 text-white px-3 py-1 rounded text-sm hover:bg-green-700">✅ Verify</button>
-                <button onClick={() => handleUpdateStatus(report.id, "False Alarm")} className="bg-red-600 text-white px-3 py-1 rounded text-sm hover:bg-red-700">❌ False Alarm</button>
-                <button onClick={() => handleUpdateStatus(report.id, "Resolved")} className="bg-blue-600 text-white px-3 py-1 rounded text-sm hover:bg-blue-700">🏁 Resolved</button>
-                <button onClick={() => handleAddNote(report.id, report.adminNote)} className="bg-gray-600 text-white px-3 py-1 rounded text-sm hover:bg-gray-700 ml-auto">📝 Note</button>
-              </div>
-              
-              {/* Note */}
-              {report.adminNote && (
-                <div className="mt-3 p-2 bg-yellow-50 border border-yellow-100 rounded">
-                  <p className="text-sm text-gray-800 italic"><span className="font-bold not-italic">Officer Note:</span> {report.adminNote}</p>
-                </div>
-              )}
+      {/* CONTENT: REPORTS */}
+      {tab === 'reports' && (
+        <div className="grid gap-4">
+          {reports.map((r) => (
+            <div key={r.id} className="bg-white p-5 rounded shadow border-l-4 border-blue-900">
+               <div className="flex justify-between">
+                   <h2 className="font-bold text-red-600">{r.category} <span className="text-slate-400 text-sm">({r.area})</span></h2>
+                   <span className="text-xs bg-slate-100 px-2 py-1 rounded font-bold">{r.status}</span>
+               </div>
+               <p className="text-slate-700 mt-1 text-sm">{r.description}</p>
+               {r.location && <a href={`https://www.google.com/maps?q=${r.location.lat},${r.location.lng}`} target="_blank" className="text-blue-600 underline text-xs mt-2 block">📍 Map Location</a>}
+               
+               <div className="mt-4 flex gap-2 border-t pt-3">
+                 <button onClick={()=>handleUpdateStatus(r.id, "Verified")} className="bg-green-50 text-green-700 px-3 py-1 rounded text-xs font-bold border border-green-100">✅ Verify</button>
+                 <button onClick={()=>handleUpdateStatus(r.id, "False Alarm")} className="bg-red-50 text-red-700 px-3 py-1 rounded text-xs font-bold border border-red-100">❌ False</button>
+                 <button onClick={()=>handleAddNote(r.id, r.adminNote)} className="bg-slate-100 text-slate-700 px-3 py-1 rounded text-xs font-bold">📝 Note</button>
+               </div>
+               {r.adminNote && <p className="mt-2 text-xs italic bg-yellow-50 p-2 text-yellow-800">Note: {r.adminNote}</p>}
             </div>
           ))}
-          {reports.length === 0 && <p className="text-center text-gray-500">No reports found.</p>}
+          {reports.length === 0 && <p className="text-slate-400 text-center">No reports found.</p>}
         </div>
       )}
+
+      {/* CONTENT: APPLICATIONS */}
+      {tab === 'applications' && (
+        <div className="grid gap-4">
+          {applications.map((app) => (
+            <div key={app.id} className="bg-white p-5 rounded shadow border-l-4 border-yellow-500">
+               <div className="flex justify-between items-start">
+                   <div>
+                       <h2 className="font-bold text-xl">{app.name}</h2>
+                       <p className="text-sm text-slate-600">{app.background} • Fitness: {app.fitness}</p>
+                   </div>
+                   <span className={`px-2 py-1 text-xs font-bold rounded ${app.status === 'Approved' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>{app.status}</span>
+               </div>
+               
+               <div className="mt-3 bg-slate-50 p-3 rounded text-sm text-slate-700">
+                   <strong>Skills:</strong> {app.skills}
+               </div>
+               <a href={app.proofLink} target="_blank" className="text-blue-600 text-xs mt-2 block underline">View Proof Documents</a>
+               
+               {app.status === 'Pending' && (
+                   <button onClick={() => handleApproveGuardian(app)} className="mt-4 w-full bg-green-600 text-white py-2 rounded font-bold hover:bg-green-700 shadow-md">
+                       ✅ Approve & Generate Badge ID
+                   </button>
+               )}
+               
+               {app.badgeId && (
+                   <div className="mt-4 text-center bg-green-50 p-3 border border-green-200 rounded">
+                       <p className="text-xs text-green-600 font-bold uppercase">Badge ID Issued</p>
+                       <p className="font-mono font-bold text-xl text-green-900 tracking-widest">{app.badgeId}</p>
+                   </div>
+               )}
+            </div>
+          ))}
+          {applications.length === 0 && <p className="text-slate-400 text-center">No applications received yet.</p>}
+        </div>
+      )}
+
     </div>
   );
 }
