@@ -1,6 +1,6 @@
 "use client"
 import { useState } from 'react';
-import { db } from '../../firebase';
+import { db } from '../firebase';
 import { collection, query, orderBy, getDocs, doc, updateDoc, deleteDoc, addDoc } from 'firebase/firestore';
 
 export default function AdminPanel() {
