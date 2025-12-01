@@ -4,7 +4,7 @@ import { db } from '../../firebase';
 import { collection, getDocs, orderBy, query, doc, updateDoc, increment } from 'firebase/firestore';
 import Link from 'next/link';
 
-// ICONS
+// --- ICONS ---
 const ShareIcon = () => <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.66 0 1.61 1.31 2.92 2.92 2.92 1.61 0 2.92-1.31 2.92-2.92s-1.31-2.92-2.92-2.92z"/></svg>;
 const UpvoteIcon = () => <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14 10h4.764a2 2 0 011.789 2.894l-3.5 7A2 2 0 0115.263 21h-4.017c-.163 0-.326-.02-.485-.06L7 20m7-10V5a2 2 0 00-2-2h-.095c-.5 0-.905.405-.905.905 0 .714-.211 1.412-.608 2.006L7 11v9m7-10h-2M7 20H5a2 2 0 01-2-2v-6a2 2 0 012-2h2.5" /></svg>;
 const MapIcon = () => <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>;
@@ -22,7 +22,7 @@ export default function Dashboard() {
         const reportsList = querySnapshot.docs.map(doc => ({ 
             id: doc.id, 
             ...doc.data(),
-            upvotes: doc.data().upvotes || 0 // Ensure upvotes field exists
+            upvotes: doc.data().upvotes || 0 
         }));
         
         setReports(reportsList);
@@ -36,13 +36,13 @@ export default function Dashboard() {
     fetchReports();
   }, []);
 
-  // --- FEATURE: UPVOTE ---
+  // --- FEATURE 1: "I SAW IT TOO" (UPVOTE) ---
   const handleUpvote = async (id) => {
-    // 1. Optimistic Update (Instant UI change)
+    // Optimistic Update (Update screen instantly)
     const updatedReports = reports.map(r => r.id === id ? {...r, upvotes: r.upvotes + 1} : r);
     setReports(updatedReports);
     
-    // 2. Database Update
+    // Update Database
     const reportRef = doc(db, "reports", id);
     await updateDoc(reportRef, { upvotes: increment(1) });
   };
@@ -52,7 +52,7 @@ export default function Dashboard() {
     const areaCounts = {}; 
     data.forEach(report => {
       const area = report.area || "Unknown";
-      if (['Harassment', 'Suspicious Activity', 'Chain Snatching'].includes(report.category)) {
+      if (['Harassment', 'Suspicious Activity', 'Chain Snatching', 'Rash Driving'].includes(report.category)) {
         if (!areaCounts[area]) areaCounts[area] = 0;
         areaCounts[area]++;
       }
@@ -108,7 +108,9 @@ export default function Dashboard() {
                 
                 <div className="absolute top-0 right-0 p-4">
                      <span className={`text-[10px] font-bold uppercase tracking-widest px-2 py-1 rounded-lg ${
-                        report.status === 'Verified' ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-500'
+                        report.status === 'Verified' ? 'bg-green-100 text-green-700' : 
+                        report.status === 'Resolved' ? 'bg-blue-100 text-blue-700' :
+                        'bg-slate-100 text-slate-500'
                      }`}>
                         {report.status}
                     </span>
@@ -122,10 +124,10 @@ export default function Dashboard() {
                     <p className="text-slate-600 text-sm leading-relaxed">{report.description}</p>
                 </div>
                 
-                {/* --- ACTION BAR (NEW FEATURES) --- */}
+                {/* --- NEW FEATURES ACTION BAR --- */}
                 <div className="mt-6 pt-4 border-t border-slate-50 flex flex-wrap gap-3 items-center justify-between">
                     
-                    {/* UPVOTE BUTTON */}
+                    {/* 1. UPVOTE BUTTON */}
                     <button 
                         onClick={() => handleUpvote(report.id)}
                         className="flex items-center gap-1.5 text-xs font-bold text-slate-600 hover:text-blue-600 bg-slate-50 px-3 py-2 rounded-lg transition"
@@ -135,7 +137,7 @@ export default function Dashboard() {
                     </button>
 
                     <div className="flex gap-2">
-                        {/* MAP BUTTON */}
+                        {/* 2. MAP LINK */}
                         {report.location && (
                             <a 
                                 href={`https://www.google.com/maps?q=${report.location.lat},${report.location.lng}`} 
@@ -147,12 +149,12 @@ export default function Dashboard() {
                             </a>
                         )}
 
-                        {/* WHATSAPP SHARE BUTTON */}
+                        {/* 3. WHATSAPP SHARE BUTTON */}
                         <a 
-                            href={`https://wa.me/?text=⚠️ *Safety Alert:* ${report.category} reported in ${report.area}.%0A%0ADescription: ${report.description}%0A%0AStay Safe! Check details on SecureWhistle.`}
+                            href={`https://wa.me/?text=⚠️ Alert: ${report.category} in ${report.area}. Stay Safe! - View on SecureWhistle`}
                             target="_blank" 
                             rel="noopener noreferrer"
-                            className="text-xs font-bold text-green-700 bg-green-50 hover:bg-green-100 px-4 py-2 rounded-lg transition flex items-center gap-1 border border-green-100"
+                            className="text-xs font-bold text-green-700 bg-green-50 hover:bg-green-100 px-3 py-2 rounded-lg transition flex items-center gap-1 border border-green-100"
                         >
                             <ShareIcon /> Share Alert
                         </a>
