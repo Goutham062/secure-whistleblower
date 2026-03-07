@@ -12,7 +12,7 @@ const MapIcon = () => <svg className="w-4 h-4" fill="none" stroke="currentColor"
 export default function Dashboard() {
   const [reports, setReports] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [safetyStatus, setSafetyStatus] = useState({ level: 'Safe', message: 'No major threats detected.', color: 'bg-green-100 border-green-500 text-green-800' });
+  const [safetyStatus, setSafetyStatus] = useState({ level: 'Safe', message: 'No major threats detected.', color: 'bg-green-100 dark:bg-green-900/30 border-green-500 text-green-800 dark:text-green-400' });
 
   useEffect(() => {
     const fetchReports = async () => {
@@ -65,31 +65,31 @@ export default function Dashboard() {
     }
 
     if (maxCount >= 3) {
-      setSafetyStatus({ level: 'CRITICAL', message: `⚠️ HIGH ALERT: Multiple incidents in ${dangerousArea}.`, color: 'bg-red-50 border-red-200 text-red-900' });
+      setSafetyStatus({ level: 'CRITICAL', message: `⚠️ HIGH ALERT: Multiple incidents in ${dangerousArea}.`, color: 'bg-red-50 dark:bg-red-900/30 border-red-200 dark:border-red-800 text-red-900 dark:text-red-400' });
     } else if (maxCount >= 1) {
-      setSafetyStatus({ level: 'WARNING', message: `✋ CAUTION: Reports from ${dangerousArea}. Stay alert.`, color: 'bg-orange-50 border-orange-200 text-orange-900' });
+      setSafetyStatus({ level: 'WARNING', message: `✋ CAUTION: Reports from ${dangerousArea}. Stay alert.`, color: 'bg-orange-50 dark:bg-orange-900/30 border-orange-200 dark:border-orange-800 text-orange-900 dark:text-orange-400' });
     } else {
-      setSafetyStatus({ level: 'NORMAL', message: 'Neighborhood activity is normal.', color: 'bg-emerald-50 border-emerald-200 text-emerald-800' });
+      setSafetyStatus({ level: 'NORMAL', message: 'Neighborhood activity is normal.', color: 'bg-emerald-50 dark:bg-emerald-900/30 border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-400' });
     }
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 p-6 font-sans">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 p-6 font-sans transition-colors duration-300">
       <div className="max-w-4xl mx-auto">
         
         <div className="flex justify-between items-center mb-8">
           <div>
-            <h1 className="text-3xl font-extrabold text-slate-900">Community Pulse</h1>
-            <p className="text-slate-500 text-sm">Real-time anonymous updates</p>
+            <h1 className="text-3xl font-extrabold text-slate-900 dark:text-white">Community Pulse</h1>
+            <p className="text-slate-500 dark:text-slate-400 text-sm">Real-time anonymous updates</p>
           </div>
           <Link href="/">
-            <button className="bg-slate-900 text-white px-5 py-2.5 rounded-xl hover:bg-slate-800 transition font-bold shadow-lg text-sm">+ New Report</button>
+            <button className="bg-slate-900 dark:bg-white text-white dark:text-slate-900 px-5 py-2.5 rounded-xl hover:bg-slate-800 dark:hover:bg-slate-200 transition font-bold shadow-lg text-sm">+ New Report</button>
           </Link>
         </div>
 
         {!loading && (
-          <div className={`p-6 rounded-2xl border mb-8 flex items-start gap-4 shadow-sm ${safetyStatus.color}`}>
-            <div className="text-3xl bg-white p-2 rounded-full shadow-sm">
+          <div className={`p-6 rounded-2xl border mb-8 flex items-start gap-4 shadow-sm transition-colors duration-300 ${safetyStatus.color}`}>
+            <div className="text-3xl bg-white dark:bg-transparent p-2 rounded-full shadow-sm">
               {safetyStatus.level === 'CRITICAL' ? '🚨' : safetyStatus.level === 'WARNING' ? '⚠️' : '🛡️'}
             </div>
             <div>
@@ -100,37 +100,37 @@ export default function Dashboard() {
         )}
         
         {loading ? (
-          <div className="space-y-4">{[1,2,3].map(i => <div key={i} className="h-40 bg-white rounded-2xl animate-pulse"></div>)}</div>
+          <div className="space-y-4">{[1,2,3].map(i => <div key={i} className="h-40 bg-white dark:bg-slate-900 rounded-2xl animate-pulse"></div>)}</div>
         ) : (
           <div className="grid gap-6">
             {reports.map((report) => (
-              <div key={report.id} className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 hover:shadow-md transition duration-300 relative overflow-hidden">
+              <div key={report.id} className="bg-white dark:bg-slate-900 p-6 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800 hover:shadow-md transition duration-300 relative overflow-hidden">
                 
                 <div className="absolute top-0 right-0 p-4">
                      <span className={`text-[10px] font-bold uppercase tracking-widest px-2 py-1 rounded-lg ${
-                        report.status === 'Verified' ? 'bg-green-100 text-green-700' : 
-                        report.status === 'Resolved' ? 'bg-blue-100 text-blue-700' :
-                        'bg-slate-100 text-slate-500'
+                        report.status === 'Verified' ? 'bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-400' : 
+                        report.status === 'Resolved' ? 'bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-400' :
+                        'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400'
                      }`}>
                         {report.status}
                     </span>
                 </div>
 
                 <div className="pr-20">
-                    <span className="bg-blue-50 text-blue-700 text-[10px] font-extrabold px-2 py-1 rounded uppercase tracking-wider mb-2 inline-block">
+                    <span className="bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 text-[10px] font-extrabold px-2 py-1 rounded uppercase tracking-wider mb-2 inline-block">
                     📍 {report.area || "Unknown Area"}
                     </span>
-                    <h2 className="text-lg font-bold text-slate-800 mb-1">{report.category}</h2>
-                    <p className="text-slate-600 text-sm leading-relaxed">{report.description}</p>
+                    <h2 className="text-lg font-bold text-slate-800 dark:text-slate-100 mb-1">{report.category}</h2>
+                    <p className="text-slate-600 dark:text-slate-300 text-sm leading-relaxed">{report.description}</p>
                 </div>
                 
                 {/* --- NEW FEATURES ACTION BAR --- */}
-                <div className="mt-6 pt-4 border-t border-slate-50 flex flex-wrap gap-3 items-center justify-between">
+                <div className="mt-6 pt-4 border-t border-slate-50 dark:border-slate-800 flex flex-wrap gap-3 items-center justify-between">
                     
                     {/* 1. UPVOTE BUTTON */}
                     <button 
                         onClick={() => handleUpvote(report.id)}
-                        className="flex items-center gap-1.5 text-xs font-bold text-slate-600 hover:text-blue-600 bg-slate-50 px-3 py-2 rounded-lg transition"
+                        className="flex items-center gap-1.5 text-xs font-bold text-slate-600 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 bg-slate-50 dark:bg-slate-800 px-3 py-2 rounded-lg transition"
                     >
                         <UpvoteIcon /> 
                         {report.upvotes > 0 ? `${report.upvotes} Verified` : "I saw this too"}
@@ -143,7 +143,7 @@ export default function Dashboard() {
                                 href={`https://www.google.com/maps?q=${report.location.lat},${report.location.lng}`} 
                                 target="_blank" 
                                 rel="noopener noreferrer"
-                                className="text-xs font-bold text-slate-600 hover:text-blue-600 bg-slate-50 px-3 py-2 rounded-lg transition flex items-center gap-1"
+                                className="text-xs font-bold text-slate-600 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 bg-slate-50 dark:bg-slate-800 px-3 py-2 rounded-lg transition flex items-center gap-1"
                             >
                                 <MapIcon /> Map
                             </a>
@@ -154,14 +154,14 @@ export default function Dashboard() {
                             href={`https://wa.me/?text=⚠️ Alert: ${report.category} in ${report.area}. Stay Safe! - View on SecureWhistle`}
                             target="_blank" 
                             rel="noopener noreferrer"
-                            className="text-xs font-bold text-green-700 bg-green-50 hover:bg-green-100 px-3 py-2 rounded-lg transition flex items-center gap-1 border border-green-100"
+                            className="text-xs font-bold text-green-700 dark:text-green-400 bg-green-50 dark:bg-green-900/30 hover:bg-green-100 dark:hover:bg-green-900/50 px-3 py-2 rounded-lg transition flex items-center gap-1 border border-green-100 dark:border-green-800"
                         >
                             <ShareIcon /> Share Alert
                         </a>
                     </div>
                 </div>
                 
-                <div className="mt-2 text-[10px] text-slate-300 font-mono text-right">
+                <div className="mt-2 text-[10px] text-slate-400 dark:text-slate-500 font-mono text-right">
                   ID: {report.trackingId} • {report.timestamp ? new Date(report.timestamp.seconds * 1000).toLocaleDateString() : 'Just now'}
                 </div>
               </div>

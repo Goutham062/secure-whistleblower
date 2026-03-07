@@ -1,4 +1,5 @@
 import { Geist, Geist_Mono } from "next/font/google";
+import { ThemeProvider } from "next-themes"; // <-- Import ThemeProvider
 import "./globals.css";
 
 const geistSans = Geist({
@@ -18,12 +19,13 @@ export const metadata = {
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="en">
-      <body
-        suppressHydrationWarning={true} // <--- THIS IS THE FIX
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-      >
-        {children}
+    // suppressHydrationWarning is required on html tag for next-themes
+    <html lang="en" suppressHydrationWarning> 
+      <body className={`${geistSans.variable} ${geistMono.variable} antialiased transition-colors duration-300`}>
+        {/* Wrap children in ThemeProvider */}
+        <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+          {children}
+        </ThemeProvider>
       </body>
     </html>
   );
