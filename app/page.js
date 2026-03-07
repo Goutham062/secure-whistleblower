@@ -1,7 +1,7 @@
 "use client"
 import { useState, useEffect } from 'react';
 import { useTheme } from 'next-themes'; // <-- New import
-import { db } from '../firebase'; 
+import { collection, addDoc, query, where, getDocs, updateDoc, doc } from 'firebase/firestore';
 import { collection, addDoc, query, where, getDocs } from 'firebase/firestore'; 
 import Link from 'next/link'; 
 import dynamic from 'next/dynamic';
