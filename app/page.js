@@ -5,6 +5,7 @@ import { db } from '../firebase';
 import { collection, addDoc, query, where, getDocs, updateDoc, doc } from 'firebase/firestore'; 
 import Link from 'next/link'; 
 import dynamic from 'next/dynamic';
+import emailjs from '@emailjs/browser'; // <-- Added EmailJS Import
 
 const MapPicker = dynamic(() => import('./components/MapPicker'), { 
   ssr: false, 
@@ -21,7 +22,7 @@ const translations = {
     catLabel: "Category", locLabel: "Location", urgentGrp: "🚨 Urgent", civicGrp: "🚧 Civic",
     recordBtn: "🎙️ Record", attachBtn: "Attach Evidence", checkStatusBtn: "Check Status", trackPlace: "WB-XXXX",
     rideTitle: "Dead Man's Switch", vehPlaceholder: "Vehicle No (e.g., TN01 AB 1234)", minPlaceholder: "Minutes to Destination", 
-    contactPlaceholder: "Emergency Contact No.", destPlaceholder: "Where are you going?",
+    contactPlaceholder: "Emergency Email Address", destPlaceholder: "Where are you going?",
     startRideBtn: "Start Protection", arrivedBtn: "I Arrived Safely",
     safeTitle: "Safety Heatmap", reportsText: "Reports", safeStatus: "Safe", cautionStatus: "Caution", highRiskStatus: "High Risk",
     fundTitle: "Support the Mission", fundSub: "Anonymous donations to fund Guardians.", fundGoal: "Goal", fundRaised: "Raised", donateBtn: "Donate Anonymously",
@@ -37,7 +38,7 @@ const translations = {
     catLabel: "வகை (Category)", locLabel: "இடம் (Location)", urgentGrp: "🚨 அவசரம்", civicGrp: "🚧 குடிமை",
     recordBtn: "🎙️ பதிவு செய்", attachBtn: "ஆதாரத்தை இணைக்கவும்", checkStatusBtn: "நிலையைச் சரிபார்க்கவும்", trackPlace: "புகார் எண் (WB-XXXX)",
     rideTitle: "பயண பாதுகாப்பு", vehPlaceholder: "வாகன எண்", minPlaceholder: "பயண நேரம் (நிமிடங்கள்)", 
-    contactPlaceholder: "அவசர தொடர்பு எண்", destPlaceholder: "எங்கு செல்கிறீர்கள்?",
+    contactPlaceholder: "அவசர மின்னஞ்சல்", destPlaceholder: "எங்கு செல்கிறீர்கள்?",
     startRideBtn: "பாதுகாப்பை தொடங்கு", arrivedBtn: "நான் பாதுகாப்பாக வந்துவிட்டேன்",
     safeTitle: "பாதுகாப்பு வரைபடம்", reportsText: "புகார்கள்", safeStatus: "பாதுகாப்பானது", cautionStatus: "எச்சரிக்கை", highRiskStatus: "ஆபத்து",
     fundTitle: "எங்கள் நோக்கத்திற்கு உதவுங்கள்", fundSub: "காவலர்களுக்கு நிதியளிக்க அனாமதேய நன்கொடைகள்.", fundGoal: "இலக்கு", fundRaised: "திரட்டப்பட்டது", donateBtn: "அனாமதேயமாக நன்கொடை அளிக்கவும்",
@@ -175,7 +176,6 @@ export default function Home() {
     } catch (err) { setTrackError("Error"); }
   };
 
-  // --- UPGRADED RIDE GUARD LOGIC ---
   const startRide = () => { 
       if(!rideDetails.vehicle || !rideDetails.contact) return alert(lang === 'ta' ? "தயவுசெய்து அனைத்து விவரங்களையும் நிரப்பவும்!" : "Please fill in Vehicle and Contact info!");
       setRideStatus('active'); 
@@ -206,24 +206,41 @@ export default function Home() {
     return () => clearInterval(interval);
   }, [rideStatus, timer]);
 
-  // LEVEL 1 SOS: Pushes data to Firebase so Dashboard Admins can see Emergency Contact
+  // LEVEL 1 SOS: Pushes data to Firebase AND Triggers your exact EmailJS template!
   const triggerLevel1SOS = async () => {
       setRideStatus('danger_level1'); 
       const id = "SOS-" + Math.floor(Math.random() * 10000);
       try { 
+          // 1. SAVE TO FIREBASE
           const docRef = await addDoc(collection(db, "reports"), { 
               trackingId: id, 
               category: "Ride Guard SOS", 
               area: rideDetails.destination || "Unknown Route", 
               description: `CRITICAL: User failed to check in. Vehicle: ${rideDetails.vehicle}.`, 
-              emergencyContact: rideDetails.contact, // Storing contact for admins
+              emergencyContact: rideDetails.contact, 
               escalationStage: "Level 1: Family Alerted",
               timestamp: new Date(), 
               status: "URGENT ALERT", 
               language: "en" 
           }); 
           setRideReportId(docRef.id); 
-      } catch (e) { console.error(e); }
+
+          // 2. SEND AUTOMATED EMAILJS ALERT (Using your specific keys)
+          const SERVICE_ID = "service_g62o7yq";
+          const TEMPLATE_ID = "template_zt1knn9";
+          const PUBLIC_KEY = "jcsgjkYSM4HyFxG1R";
+
+          const templateParams = {
+              to_email: rideDetails.contact,
+              vehicle: rideDetails.vehicle,
+              destination: rideDetails.destination || "Unknown Route",
+              duration: rideDetails.time
+          };
+
+          await emailjs.send(SERVICE_ID, TEMPLATE_ID, templateParams, PUBLIC_KEY);
+          console.log("SOS Email Successfully Sent!");
+
+      } catch (e) { console.error("SOS Trigger Failed:", e); }
   };
 
   const formatTime = (s) => `${Math.floor(s / 60)}:${s % 60 < 10 ? '0' : ''}${s % 60}`;
@@ -355,7 +372,7 @@ export default function Home() {
                     <div className="space-y-4">
                       <input type="text" placeholder={t.vehPlaceholder} value={rideDetails.vehicle} onChange={e=>setRideDetails({...rideDetails, vehicle:e.target.value})} className="w-full bg-slate-50 dark:bg-slate-800 p-4 rounded-xl font-bold text-lg border border-slate-200 dark:border-slate-700 dark:text-white"/>
                       <input type="text" placeholder={t.destPlaceholder} value={rideDetails.destination} onChange={e=>setRideDetails({...rideDetails, destination:e.target.value})} className="w-full bg-slate-50 dark:bg-slate-800 p-4 rounded-xl font-bold text-lg border border-slate-200 dark:border-slate-700 dark:text-white"/>
-                      <input type="tel" placeholder={t.contactPlaceholder} value={rideDetails.contact} onChange={e=>setRideDetails({...rideDetails, contact:e.target.value})} className="w-full bg-slate-50 dark:bg-slate-800 p-4 rounded-xl font-bold text-lg border border-slate-200 dark:border-slate-700 dark:text-white"/>
+                      <input type="email" placeholder={t.contactPlaceholder} value={rideDetails.contact} onChange={e=>setRideDetails({...rideDetails, contact:e.target.value})} className="w-full bg-slate-50 dark:bg-slate-800 p-4 rounded-xl font-bold text-lg border border-slate-200 dark:border-slate-700 dark:text-white"/>
                       <input type="number" placeholder={t.minPlaceholder} value={rideDetails.time} onChange={e=>setRideDetails({...rideDetails, time:e.target.value})} className="w-full bg-slate-50 dark:bg-slate-800 p-4 rounded-xl font-bold text-lg border border-slate-200 dark:border-slate-700 dark:text-white"/>
                     </div>
                     <button onClick={startRide} className="w-full bg-slate-900 dark:bg-white text-white dark:text-slate-900 py-5 rounded-2xl font-bold text-lg shadow-xl">{t.startRideBtn}</button>
@@ -368,7 +385,7 @@ export default function Home() {
                       <div className="bg-orange-50 dark:bg-orange-900/20 p-6 rounded-2xl border-2 border-orange-500 animate-bounce space-y-3">
                         <h3 className="text-2xl font-bold text-orange-600 dark:text-orange-500">{lang === 'ta' ? "லெவல் 1 எச்சரிக்கை" : "LEVEL 1 ALERT"}</h3>
                         <p className="text-sm font-bold text-slate-700 dark:text-slate-300">
-                          {lang === 'ta' ? "அவசர தொடர்புக்கு எஸ்எம்எஸ் அனுப்பப்பட்டது." : "Emergency Contact has been alerted!"}
+                          {lang === 'ta' ? "அவசர மின்னஞ்சல் அனுப்பப்பட்டது." : "Emergency Email has been sent!"}
                         </p>
                         <p className="text-xs text-red-500 font-bold mt-4">
                           {lang === 'ta' ? "30 நிமிடங்களில் காவல்துறைக்கு தகவல் அனுப்பப்படும்." : "ESCALATING TO POLICE IN 30 MINUTES."}
