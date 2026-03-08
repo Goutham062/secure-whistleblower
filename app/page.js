@@ -5,7 +5,7 @@ import { db } from '../firebase';
 import { collection, addDoc, query, where, getDocs, updateDoc, doc } from 'firebase/firestore'; 
 import Link from 'next/link'; 
 import dynamic from 'next/dynamic';
-import emailjs from '@emailjs/browser'; // <--- THIS IS REQUIRED FOR EMAILS
+import emailjs from '@emailjs/browser'; // <-- EMAILJS IMPORTED HERE!
 
 const MapPicker = dynamic(() => import('./components/MapPicker'), { 
   ssr: false, 
@@ -55,7 +55,7 @@ const CATEGORY_TRANSLATIONS = {
 
 const AREA_TRANSLATIONS = {
   "Adyar": "அடையாறு", "Alandur": "ஆலந்தூர்", "Ambattur": "அம்பத்தூர்", "Anna Nagar": "அண்ணா நகர்", "Ashok Nagar": "அசோக் நகர்", "Avadi": "ஆவடி", 
-  "Ayanavaram": "அயனாவரம்", "Besant Nagar": "பெசன்ட் নগর", "Chetpet": "சேத்துப்பட்டு", "Chromepet": "குரோம்பேட்டை", "Egmore": "எழும்பூர்", 
+  "Ayanavaram": "அயனாவரம்", "Besant Nagar": "பெசன்ட் நகர்", "Chetpet": "சேத்துப்பட்டு", "Chromepet": "குரோம்பேட்டை", "Egmore": "எழும்பூர்", 
   "Guindy": "கிண்டி", "K.K. Nagar": "கே.கே. நகர்", "Kilpauk": "கீழ்ப்பாக்கம்", "Kodambakkam": "கோடம்பாக்கம்", "Kolathur": "கொளத்தூர்", 
   "Korattur": "கொரட்டூர்", "Kotturpuram": "கோட்டூர்புரம்", "Koyambedu": "கோயம்பேடு", "Madhavaram": "மாதவரம்", "Madipakkam": "மடிப்பாக்கம்", 
   "Medavakkam": "மேடவாக்கம்", "Mogappair": "முகப்பேர்", "Mylapore": "மயிலாப்பூர்", "Nandanam": "நந்தனம்", "Nungambakkam": "நுங்கம்பாக்கம்", 
@@ -103,7 +103,7 @@ export default function Home() {
   
   // RIDE GUARD UPDATES
   const [rideDetails, setRideDetails] = useState({ vehicle: '', time: 10, contact: '', destination: '' }); 
-  const [rideStatus, setRideStatus] = useState('idle'); // idle, active, danger_level1
+  const [rideStatus, setRideStatus] = useState('idle'); 
   const [timer, setTimer] = useState(0);
   const [rideReportId, setRideReportId] = useState(null);
 
@@ -206,18 +206,17 @@ export default function Home() {
     return () => clearInterval(interval);
   }, [rideStatus, timer]);
 
-  // LEVEL 1 SOS: Pushes data to Firebase AND triggers the EmailJS Alert
+  // LEVEL 1 SOS WITH YOUR EXACT EMAILJS KEYS
   const triggerLevel1SOS = async () => {
       setRideStatus('danger_level1'); 
       const id = "SOS-" + Math.floor(Math.random() * 10000);
       try { 
-          // Save to Firebase Dashboard First
           const docRef = await addDoc(collection(db, "reports"), { 
               trackingId: id, 
               category: "Ride Guard SOS", 
               area: rideDetails.destination || "Unknown Route", 
               description: `CRITICAL: User failed to check in. Vehicle: ${rideDetails.vehicle}.`, 
-              emergencyContact: rideDetails.contact,
+              emergencyContact: rideDetails.contact, 
               escalationStage: "Level 1: Family Alerted",
               timestamp: new Date(), 
               status: "URGENT ALERT", 
@@ -225,7 +224,7 @@ export default function Home() {
           }); 
           setRideReportId(docRef.id); 
 
-          // Trigger the actual EmailJS alert using your specific keys
+          // YOUR KEYS ARE HARDCODED RIGHT HERE
           const SERVICE_ID = "service_g62o7yq";
           const TEMPLATE_ID = "template_zt1knn9";
           const PUBLIC_KEY = "jcsgjkYSM4HyFxG1R";
@@ -240,10 +239,7 @@ export default function Home() {
           await emailjs.send(SERVICE_ID, TEMPLATE_ID, templateParams, PUBLIC_KEY);
           console.log("SOS Email Successfully Sent!");
 
-      } catch (e) { 
-          console.error("SOS Trigger Failed:", e); 
-          alert("Error sending email, but Dashboard was updated.");
-      }
+      } catch (e) { console.error("SOS Trigger Failed:", e); }
   };
 
   const formatTime = (s) => `${Math.floor(s / 60)}:${s % 60 < 10 ? '0' : ''}${s % 60}`;
@@ -362,7 +358,7 @@ export default function Home() {
 
             {activeTab === 'track' && <div className="text-center py-10"><input type="text" placeholder={t.trackPlace} value={trackInput} onChange={(e) => setTrackInput(e.target.value.toUpperCase())} className="w-full bg-slate-100 dark:bg-slate-800 text-center text-3xl font-mono p-5 rounded-2xl uppercase mb-6 tracking-widest border border-slate-200 dark:border-slate-700 outline-none dark:text-white" /><button onClick={handleTrackSearch} className="w-full bg-blue-600 text-white py-4 rounded-xl font-bold text-lg shadow-lg">{t.checkStatusBtn}</button>{trackResult && (<div className="mt-8 bg-white dark:bg-slate-800 p-6 rounded-2xl border border-slate-100 dark:border-slate-700 shadow-lg text-left"><div className="flex justify-between items-center mb-4"><span className="text-xs font-bold text-slate-400 uppercase tracking-widest">Status</span><span className={`px-3 py-1 rounded-full text-xs font-bold uppercase ${trackResult.status === 'Verified' ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400' : 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400'}`}>{trackResult.status}</span></div><p className="text-slate-600 dark:text-slate-300 italic">"{trackResult.adminNote || (lang === 'ta' ? "பரிசீலனையில் உள்ளது..." : "Pending Review...")}"</p></div>)}</div>}
             
-            {/* UPDATED RIDE GUARD UI - WITH THE CANCEL BUTTON RESTORED */}
+            {/* UPDATED RIDE GUARD UI - WITH THE UX CANCEL BUTTON INCLUDED */}
             {activeTab === 'ride' && (
               <div className="py-4">
                 {rideStatus === 'idle' ? (
@@ -393,8 +389,7 @@ export default function Home() {
                         <p className="text-xs text-red-500 font-bold mb-4">
                           {lang === 'ta' ? "30 நிமிடங்களில் காவல்துறைக்கு தகவல் அனுப்பப்படும்." : "ESCALATING TO POLICE IN 30 MINUTES."}
                         </p>
-                        
-                        {/* THIS IS YOUR UX FIX - THE BUTTON IS BACK! */}
+                        {/* THIS IS YOUR UX FIX - THE CANCEL BUTTON STAYS VISIBLE! */}
                         <button onClick={endRideSafe} className="w-full bg-green-500 hover:bg-green-600 text-white py-4 rounded-xl font-bold text-lg shadow-lg transition duration-300">
                           ✅ {t.arrivedBtn} (Cancel Alert)
                         </button>
