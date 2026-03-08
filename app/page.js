@@ -11,7 +11,6 @@ const MapPicker = dynamic(() => import('./components/MapPicker'), {
   loading: () => <div className="h-64 w-full bg-slate-100 dark:bg-slate-800 animate-pulse rounded-2xl flex items-center justify-center text-slate-400">Loading Maps...</div>
 });
 
-// --- 1. FULL TRANSLATION DICTIONARIES ---
 const translations = {
   en: {
     heroTitle: "Speak Up. Stay Safe.", heroSub: "Secure, anonymous reporting for a safer Chennai.",
@@ -21,7 +20,9 @@ const translations = {
     agentLabel: "Request Guardian Verification?", agentSub: "A verified partner will visit the spot to check.", bountyLabel: "Offer Bounty (₹)",
     catLabel: "Category", locLabel: "Location", urgentGrp: "🚨 Urgent", civicGrp: "🚧 Civic",
     recordBtn: "🎙️ Record", attachBtn: "Attach Evidence", checkStatusBtn: "Check Status", trackPlace: "WB-XXXX",
-    rideTitle: "Dead Man's Switch", vehPlaceholder: "Vehicle No", minPlaceholder: "Minutes", startRideBtn: "Start Protection", arrivedBtn: "I Arrived Safely",
+    rideTitle: "Dead Man's Switch", vehPlaceholder: "Vehicle No (e.g., TN01 AB 1234)", minPlaceholder: "Minutes to Destination", 
+    contactPlaceholder: "Emergency Contact No.", destPlaceholder: "Where are you going?",
+    startRideBtn: "Start Protection", arrivedBtn: "I Arrived Safely",
     safeTitle: "Safety Heatmap", reportsText: "Reports", safeStatus: "Safe", cautionStatus: "Caution", highRiskStatus: "High Risk",
     fundTitle: "Support the Mission", fundSub: "Anonymous donations to fund Guardians.", fundGoal: "Goal", fundRaised: "Raised", donateBtn: "Donate Anonymously",
     loadingText: "Encrypting...", doneBtn: "Done", reportLogTitle: "Report Logged", trackIdText: "Tracking ID",
@@ -35,7 +36,9 @@ const translations = {
     agentLabel: "கள ஆய்வாளர் வேண்டுமா?", agentSub: "சரிபார்க்க ஒரு நபர் அனுப்பப்படுவார்.", bountyLabel: "வெகுமதி (₹)",
     catLabel: "வகை (Category)", locLabel: "இடம் (Location)", urgentGrp: "🚨 அவசரம்", civicGrp: "🚧 குடிமை",
     recordBtn: "🎙️ பதிவு செய்", attachBtn: "ஆதாரத்தை இணைக்கவும்", checkStatusBtn: "நிலையைச் சரிபார்க்கவும்", trackPlace: "புகார் எண் (WB-XXXX)",
-    rideTitle: "பயண பாதுகாப்பு", vehPlaceholder: "வாகன எண்", minPlaceholder: "நிமிடங்கள்", startRideBtn: "பாதுகாப்பை தொடங்கு", arrivedBtn: "நான் பாதுகாப்பாக வந்துவிட்டேன்",
+    rideTitle: "பயண பாதுகாப்பு", vehPlaceholder: "வாகன எண்", minPlaceholder: "பயண நேரம் (நிமிடங்கள்)", 
+    contactPlaceholder: "அவசர தொடர்பு எண்", destPlaceholder: "எங்கு செல்கிறீர்கள்?",
+    startRideBtn: "பாதுகாப்பை தொடங்கு", arrivedBtn: "நான் பாதுகாப்பாக வந்துவிட்டேன்",
     safeTitle: "பாதுகாப்பு வரைபடம்", reportsText: "புகார்கள்", safeStatus: "பாதுகாப்பானது", cautionStatus: "எச்சரிக்கை", highRiskStatus: "ஆபத்து",
     fundTitle: "எங்கள் நோக்கத்திற்கு உதவுங்கள்", fundSub: "காவலர்களுக்கு நிதியளிக்க அனாமதேய நன்கொடைகள்.", fundGoal: "இலக்கு", fundRaised: "திரட்டப்பட்டது", donateBtn: "அனாமதேயமாக நன்கொடை அளிக்கவும்",
     loadingText: "குறியாக்கம் செய்யப்படுகிறது...", doneBtn: "முடிந்தது", reportLogTitle: "புகார் பதிவு செய்யப்பட்டது", trackIdText: "கண்காணிப்பு எண்",
@@ -66,7 +69,6 @@ const AREA_TRANSLATIONS = {
 const CHENNAI_AREAS = Object.keys(AREA_TRANSLATIONS).filter(a => a !== "Not in Chennai");
 const MONTHLY_LIMIT = 500000; 
 
-// --- AI LOGIC ENGINE ---
 const AI_KEYWORDS = {
   "Cyber Fraud": ["otp", "bank", "money", "scam", "hacked", "password", "fake call", "link"],
   "Chain Snatching": ["chain", "gold", "necklace", "snatched", "bike", "thieves"],
@@ -97,10 +99,13 @@ export default function Home() {
   const [trackInput, setTrackInput] = useState('');
   const [trackResult, setTrackResult] = useState(null);
   const [trackError, setTrackError] = useState('');
-  const [rideDetails, setRideDetails] = useState({ vehicle: '', time: 10 }); 
-  const [rideStatus, setRideStatus] = useState('idle'); 
+  
+  // RIDE GUARD UPDATES
+  const [rideDetails, setRideDetails] = useState({ vehicle: '', time: 10, contact: '', destination: '' }); 
+  const [rideStatus, setRideStatus] = useState('idle'); // idle, active, danger_level1
   const [timer, setTimer] = useState(0);
   const [rideReportId, setRideReportId] = useState(null);
+
   const [areaSafety, setAreaSafety] = useState([]);
   const [loadingSafe, setLoadingSafe] = useState(false);
   const [currentFunds, setCurrentFunds] = useState(0);
@@ -112,7 +117,6 @@ export default function Home() {
 
   useEffect(() => { setMounted(true); const timer = setTimeout(() => setShowSplash(false), 2500); return () => clearTimeout(timer); }, []);
 
-  // AI EFFECT
   useEffect(() => {
     if (desc.length > 5) {
       setAiThinking(true);
@@ -171,21 +175,57 @@ export default function Home() {
     } catch (err) { setTrackError("Error"); }
   };
 
-  const startRide = () => { setRideStatus('active'); setTimer(rideDetails.time * 60); setRideReportId(null); };
+  // --- UPGRADED RIDE GUARD LOGIC ---
+  const startRide = () => { 
+      if(!rideDetails.vehicle || !rideDetails.contact) return alert(lang === 'ta' ? "தயவுசெய்து அனைத்து விவரங்களையும் நிரப்பவும்!" : "Please fill in Vehicle and Contact info!");
+      setRideStatus('active'); 
+      setTimer(rideDetails.time * 60); 
+      setRideReportId(null); 
+  };
+
   const endRideSafe = async () => { 
-      if (rideReportId) { try { await updateDoc(doc(db, "reports", rideReportId), { status: "False Alarm - User Safe", adminNote: "User manually cancelled SOS alert." }); } catch(e) { console.error(e); } }
+      if (rideReportId) { 
+          try { 
+              await updateDoc(doc(db, "reports", rideReportId), { 
+                  status: "False Alarm - User Safe", 
+                  adminNote: "User manually cancelled SOS alert." 
+              }); 
+          } catch(e) { console.error(e); } 
+      }
       setRideStatus('safe'); 
   };
+
   useEffect(() => {
     let interval = null;
-    if (rideStatus === 'active' && timer > 0) interval = setInterval(() => setTimer((t) => t - 1), 1000);
-    else if (rideStatus === 'active' && timer === 0) { triggerSOS(); clearInterval(interval); }
+    if (rideStatus === 'active' && timer > 0) {
+        interval = setInterval(() => setTimer((t) => t - 1), 1000);
+    } else if (rideStatus === 'active' && timer === 0) { 
+        triggerLevel1SOS(); 
+        clearInterval(interval); 
+    }
     return () => clearInterval(interval);
   }, [rideStatus, timer]);
-  const triggerSOS = async () => {
-      setRideStatus('danger'); const id = "SOS-" + Math.floor(Math.random() * 10000);
-      try { const docRef = await addDoc(collection(db, "reports"), { trackingId: id, category: "Ride Guard SOS", area: "Unknown", description: `CRITICAL: User failed to check in. Vehicle: ${rideDetails.vehicle}.`, timestamp: new Date(), status: "URGENT ALERT", language: "en" }); setRideReportId(docRef.id); } catch (e) { console.error(e); }
+
+  // LEVEL 1 SOS: Pushes data to Firebase so Dashboard Admins can see Emergency Contact
+  const triggerLevel1SOS = async () => {
+      setRideStatus('danger_level1'); 
+      const id = "SOS-" + Math.floor(Math.random() * 10000);
+      try { 
+          const docRef = await addDoc(collection(db, "reports"), { 
+              trackingId: id, 
+              category: "Ride Guard SOS", 
+              area: rideDetails.destination || "Unknown Route", 
+              description: `CRITICAL: User failed to check in. Vehicle: ${rideDetails.vehicle}.`, 
+              emergencyContact: rideDetails.contact, // Storing contact for admins
+              escalationStage: "Level 1: Family Alerted",
+              timestamp: new Date(), 
+              status: "URGENT ALERT", 
+              language: "en" 
+          }); 
+          setRideReportId(docRef.id); 
+      } catch (e) { console.error(e); }
   };
+
   const formatTime = (s) => `${Math.floor(s / 60)}:${s % 60 < 10 ? '0' : ''}${s % 60}`;
 
   const fetchSafetyData = async () => {
@@ -302,7 +342,45 @@ export default function Home() {
 
             {activeTab === 'track' && <div className="text-center py-10"><input type="text" placeholder={t.trackPlace} value={trackInput} onChange={(e) => setTrackInput(e.target.value.toUpperCase())} className="w-full bg-slate-100 dark:bg-slate-800 text-center text-3xl font-mono p-5 rounded-2xl uppercase mb-6 tracking-widest border border-slate-200 dark:border-slate-700 outline-none dark:text-white" /><button onClick={handleTrackSearch} className="w-full bg-blue-600 text-white py-4 rounded-xl font-bold text-lg shadow-lg">{t.checkStatusBtn}</button>{trackResult && (<div className="mt-8 bg-white dark:bg-slate-800 p-6 rounded-2xl border border-slate-100 dark:border-slate-700 shadow-lg text-left"><div className="flex justify-between items-center mb-4"><span className="text-xs font-bold text-slate-400 uppercase tracking-widest">Status</span><span className={`px-3 py-1 rounded-full text-xs font-bold uppercase ${trackResult.status === 'Verified' ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400' : 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400'}`}>{trackResult.status}</span></div><p className="text-slate-600 dark:text-slate-300 italic">"{trackResult.adminNote || (lang === 'ta' ? "பரிசீலனையில் உள்ளது..." : "Pending Review...")}"</p></div>)}</div>}
             
-            {activeTab === 'ride' && <div className="py-4">{rideStatus === 'idle' ? (<div className="space-y-6"><div className="bg-yellow-50 dark:bg-yellow-900/20 p-6 rounded-3xl border border-yellow-200 dark:border-yellow-800/50 text-center"><div className="text-4xl mb-3">🚕</div><h3 className="text-xl font-bold text-yellow-900 dark:text-yellow-500">{t.rideTitle}</h3></div><div className="space-y-4"><input type="text" placeholder={t.vehPlaceholder} value={rideDetails.vehicle} onChange={e=>setRideDetails({...rideDetails, vehicle:e.target.value})} className="w-full bg-slate-50 dark:bg-slate-800 p-4 rounded-xl font-bold text-lg border border-slate-200 dark:border-slate-700 dark:text-white"/><input type="number" placeholder={t.minPlaceholder} value={rideDetails.time} onChange={e=>setRideDetails({...rideDetails, time:e.target.value})} className="w-full bg-slate-50 dark:bg-slate-800 p-4 rounded-xl font-bold text-lg border border-slate-200 dark:border-slate-700 dark:text-white"/></div><button onClick={startRide} className="w-full bg-slate-900 dark:bg-white text-white dark:text-slate-900 py-5 rounded-2xl font-bold text-lg shadow-xl">{t.startRideBtn}</button></div>) : (<div className="text-center py-12"><div className="text-7xl font-mono font-bold text-slate-800 dark:text-slate-100 mb-8 animate-pulse">{formatTime(timer)}</div>{rideStatus === 'danger' ? <div className="bg-red-50 dark:bg-red-900/20 p-6 rounded-2xl border-2 border-red-500 animate-bounce"><h3 className="text-2xl font-bold text-red-600 dark:text-red-500">{lang === 'ta' ? "எச்சரிக்கை தூண்டப்பட்டது" : "ALARM TRIGGERED"}</h3></div> : <button onClick={endRideSafe} className="w-full bg-green-500 text-white py-5 rounded-2xl font-bold text-xl shadow-lg">{t.arrivedBtn}</button>}</div>)}</div>}
+            {/* UPDATED RIDE GUARD UI */}
+            {activeTab === 'ride' && (
+              <div className="py-4">
+                {rideStatus === 'idle' ? (
+                  <div className="space-y-6">
+                    <div className="bg-yellow-50 dark:bg-yellow-900/20 p-6 rounded-3xl border border-yellow-200 dark:border-yellow-800/50 text-center">
+                      <div className="text-4xl mb-3">🚕</div>
+                      <h3 className="text-xl font-bold text-yellow-900 dark:text-yellow-500">{t.rideTitle}</h3>
+                      <p className="text-xs text-yellow-700 dark:text-yellow-600 mt-2">{lang === 'ta' ? "பயண விவரங்கள் அனாமதேயமாக கண்காணிக்கப்படும்" : "Securely log your journey details"}</p>
+                    </div>
+                    <div className="space-y-4">
+                      <input type="text" placeholder={t.vehPlaceholder} value={rideDetails.vehicle} onChange={e=>setRideDetails({...rideDetails, vehicle:e.target.value})} className="w-full bg-slate-50 dark:bg-slate-800 p-4 rounded-xl font-bold text-lg border border-slate-200 dark:border-slate-700 dark:text-white"/>
+                      <input type="text" placeholder={t.destPlaceholder} value={rideDetails.destination} onChange={e=>setRideDetails({...rideDetails, destination:e.target.value})} className="w-full bg-slate-50 dark:bg-slate-800 p-4 rounded-xl font-bold text-lg border border-slate-200 dark:border-slate-700 dark:text-white"/>
+                      <input type="tel" placeholder={t.contactPlaceholder} value={rideDetails.contact} onChange={e=>setRideDetails({...rideDetails, contact:e.target.value})} className="w-full bg-slate-50 dark:bg-slate-800 p-4 rounded-xl font-bold text-lg border border-slate-200 dark:border-slate-700 dark:text-white"/>
+                      <input type="number" placeholder={t.minPlaceholder} value={rideDetails.time} onChange={e=>setRideDetails({...rideDetails, time:e.target.value})} className="w-full bg-slate-50 dark:bg-slate-800 p-4 rounded-xl font-bold text-lg border border-slate-200 dark:border-slate-700 dark:text-white"/>
+                    </div>
+                    <button onClick={startRide} className="w-full bg-slate-900 dark:bg-white text-white dark:text-slate-900 py-5 rounded-2xl font-bold text-lg shadow-xl">{t.startRideBtn}</button>
+                  </div>
+                ) : (
+                  <div className="text-center py-12">
+                    <div className="text-7xl font-mono font-bold text-slate-800 dark:text-slate-100 mb-8 animate-pulse">{formatTime(timer)}</div>
+                    
+                    {rideStatus === 'danger_level1' ? (
+                      <div className="bg-orange-50 dark:bg-orange-900/20 p-6 rounded-2xl border-2 border-orange-500 animate-bounce space-y-3">
+                        <h3 className="text-2xl font-bold text-orange-600 dark:text-orange-500">{lang === 'ta' ? "லெவல் 1 எச்சரிக்கை" : "LEVEL 1 ALERT"}</h3>
+                        <p className="text-sm font-bold text-slate-700 dark:text-slate-300">
+                          {lang === 'ta' ? "அவசர தொடர்புக்கு எஸ்எம்எஸ் அனுப்பப்பட்டது." : "Emergency Contact has been alerted!"}
+                        </p>
+                        <p className="text-xs text-red-500 font-bold mt-4">
+                          {lang === 'ta' ? "30 நிமிடங்களில் காவல்துறைக்கு தகவல் அனுப்பப்படும்." : "ESCALATING TO POLICE IN 30 MINUTES."}
+                        </p>
+                      </div>
+                    ) : (
+                      <button onClick={endRideSafe} className="w-full bg-green-500 text-white py-5 rounded-2xl font-bold text-xl shadow-lg">{t.arrivedBtn}</button>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
             
             {activeTab === 'safe' && <div className="py-2"><div className="text-center mb-8"><h2 className="text-2xl font-bold text-slate-800 dark:text-slate-100">{t.safeTitle}</h2></div>{loadingSafe ? <p className="text-center text-slate-400">Loading...</p> : (<div className="space-y-3 h-[500px] overflow-y-auto pr-2 custom-scrollbar">{areaSafety.map((item) => (<div key={item.name} className={`flex justify-between items-center p-5 rounded-2xl border transition-all hover:scale-[1.01] ${item.color}`}><div className="flex items-center gap-4"><div className={`w-4 h-4 rounded-full shadow-sm ${item.status === 'Safe' ? 'bg-green-500' : item.status.includes('Caution') ? 'bg-yellow-500' : 'bg-red-600 animate-pulse'}`}></div><span className="font-bold text-base text-slate-800 dark:text-slate-200">{lang === 'ta' ? AREA_TRANSLATIONS[item.name] : item.name}</span></div><div className="text-right"><span className="block text-[10px] font-extrabold uppercase tracking-widest opacity-60 dark:text-slate-300">{lang === 'ta' ? (item.status === 'Safe' ? t.safeStatus : item.status === 'Caution' ? t.cautionStatus : t.highRiskStatus) : item.status}</span><span className="text-sm font-bold dark:text-slate-200">{item.count} {t.reportsText}</span></div></div>))}</div>)}</div>}
             
@@ -311,7 +389,6 @@ export default function Home() {
         </div>
       </main>
       
-      {/* PERFECTLY RESTORED FOOTER WITH POLICE APP LINKS AND TRANSLATIONS */}
       <footer className="text-center py-12 bg-white dark:bg-slate-900 border-t border-slate-100 dark:border-slate-800 mt-10 relative z-10 transition-colors duration-300">
         <div className="flex justify-center gap-8 mb-8 items-center">
           <Link href="/admin"><span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest hover:text-slate-600 dark:hover:text-slate-300 cursor-pointer">{t.adminLogin}</span></Link>
