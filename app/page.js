@@ -19,13 +19,13 @@ const translations = {
     submitBtn: "Submit Secure Report", adminLogin: "Official Login",
     descLabel: "Description", descPlace: "Describe what happened...",
     agentLabel: "Request Guardian Verification?", agentSub: "A verified partner will visit the spot to check.", bountyLabel: "Offer Bounty (₹)",
-    // NEW FIELDS
     catLabel: "Category", locLabel: "Location", urgentGrp: "🚨 Urgent", civicGrp: "🚧 Civic",
     recordBtn: "🎙️ Record", attachBtn: "Attach Evidence", checkStatusBtn: "Check Status", trackPlace: "WB-XXXX",
     rideTitle: "Dead Man's Switch", vehPlaceholder: "Vehicle No", minPlaceholder: "Minutes", startRideBtn: "Start Protection", arrivedBtn: "I Arrived Safely",
-    safeTitle: "Safety Heatmap", reportsText: "Reports",
+    safeTitle: "Safety Heatmap", reportsText: "Reports", safeStatus: "Safe", cautionStatus: "Caution", highRiskStatus: "High Risk",
     fundTitle: "Support the Mission", fundSub: "Anonymous donations to fund Guardians.", fundGoal: "Goal", fundRaised: "Raised", donateBtn: "Donate Anonymously",
-    loadingText: "Encrypting...", doneBtn: "Done", reportLogTitle: "Report Logged", trackIdText: "Tracking ID"
+    loadingText: "Encrypting...", doneBtn: "Done", reportLogTitle: "Report Logged", trackIdText: "Tracking ID",
+    officialApp: "Official TN Police App"
   },
   ta: {
     heroTitle: "துணிந்து பேசுங்கள்.", heroSub: "பாதுகாப்பான சென்னைக்காக அனாமதேய புகார் சேவை.",
@@ -33,13 +33,13 @@ const translations = {
     submitBtn: "புகாரை அனுப்பு", adminLogin: "அதிகாரி உள்நுழைவு",
     descLabel: "விவரம்", descPlace: "என்ன நடந்தது...",
     agentLabel: "கள ஆய்வாளர் வேண்டுமா?", agentSub: "சரிபார்க்க ஒரு நபர் அனுப்பப்படுவார்.", bountyLabel: "வெகுமதி (₹)",
-    // NEW FIELDS
     catLabel: "வகை (Category)", locLabel: "இடம் (Location)", urgentGrp: "🚨 அவசரம்", civicGrp: "🚧 குடிமை",
     recordBtn: "🎙️ பதிவு செய்", attachBtn: "ஆதாரத்தை இணைக்கவும்", checkStatusBtn: "நிலையைச் சரிபார்க்கவும்", trackPlace: "புகார் எண் (WB-XXXX)",
     rideTitle: "பயண பாதுகாப்பு", vehPlaceholder: "வாகன எண்", minPlaceholder: "நிமிடங்கள்", startRideBtn: "பாதுகாப்பை தொடங்கு", arrivedBtn: "நான் பாதுகாப்பாக வந்துவிட்டேன்",
-    safeTitle: "பாதுகாப்பு வரைபடம்", reportsText: "புகார்கள்",
+    safeTitle: "பாதுகாப்பு வரைபடம்", reportsText: "புகார்கள்", safeStatus: "பாதுகாப்பானது", cautionStatus: "எச்சரிக்கை", highRiskStatus: "ஆபத்து",
     fundTitle: "எங்கள் நோக்கத்திற்கு உதவுங்கள்", fundSub: "காவலர்களுக்கு நிதியளிக்க அனாமதேய நன்கொடைகள்.", fundGoal: "இலக்கு", fundRaised: "திரட்டப்பட்டது", donateBtn: "அனாமதேயமாக நன்கொடை அளிக்கவும்",
-    loadingText: "குறியாக்கம் செய்யப்படுகிறது...", doneBtn: "முடிந்தது", reportLogTitle: "புகார் பதிவு செய்யப்பட்டது", trackIdText: "கண்காணிப்பு எண்"
+    loadingText: "குறியாக்கம் செய்யப்படுகிறது...", doneBtn: "முடிந்தது", reportLogTitle: "புகார் பதிவு செய்யப்பட்டது", trackIdText: "கண்காணிப்பு எண்",
+    officialApp: "அதிகாரப்பூர்வ தமிழ்நாடு காவல்துறை செயலி"
   }
 };
 
@@ -311,9 +311,26 @@ export default function Home() {
         </div>
       </main>
       
+      {/* PERFECTLY RESTORED FOOTER WITH POLICE APP LINKS AND TRANSLATIONS */}
       <footer className="text-center py-12 bg-white dark:bg-slate-900 border-t border-slate-100 dark:border-slate-800 mt-10 relative z-10 transition-colors duration-300">
-        <div className="flex justify-center gap-8 mb-8 items-center"><Link href="/admin"><span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest hover:text-slate-600 dark:hover:text-slate-300 cursor-pointer">{t.adminLogin}</span></Link><Link href="/tasks"><span className="text-[10px] font-bold text-yellow-600 dark:text-yellow-500 uppercase tracking-widest hover:text-yellow-700 dark:hover:text-yellow-400 cursor-pointer">🕵️ Guardian Partner</span></Link></div>
+        <div className="flex justify-center gap-8 mb-8 items-center">
+          <Link href="/admin"><span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest hover:text-slate-600 dark:hover:text-slate-300 cursor-pointer">{t.adminLogin}</span></Link>
+          <span className="text-slate-200 dark:text-slate-700">|</span>
+          <Link href="/tasks"><span className="text-[10px] font-bold text-yellow-600 dark:text-yellow-500 uppercase tracking-widest hover:text-yellow-700 dark:hover:text-yellow-400 cursor-pointer">🕵️ Guardian Partner</span></Link>
+        </div>
+        <div className="mb-4">
+          <p className="text-[10px] font-bold text-slate-300 dark:text-slate-600 uppercase tracking-widest mb-4">{t.officialApp}</p>
+          <div className="flex flex-wrap justify-center gap-4">
+            <a href="https://play.google.com/store/apps/details?id=com.amtexsystems.kaavaluthavi" target="_blank" rel="noopener noreferrer" className="bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-400 px-5 py-2 rounded-xl transition border border-slate-100 dark:border-slate-700 flex items-center gap-2">
+              <span className="text-xl">🤖</span><span className="text-xs font-bold">Google Play</span>
+            </a>
+            <a href="https://apps.apple.com/in/app/kaaval-uthavi/id1388361252" target="_blank" rel="noopener noreferrer" className="bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-400 px-5 py-2 rounded-xl transition border border-slate-100 dark:border-slate-700 flex items-center gap-2">
+              <span className="text-xl">🍎</span><span className="text-xs font-bold">App Store</span>
+            </a>
+          </div>
+        </div>
       </footer>
+
     </div>
   );
 }
