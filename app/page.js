@@ -2,21 +2,21 @@
 import { useState, useEffect, useRef } from 'react';
 import { useTheme } from 'next-themes'; 
 import { db } from '../firebase'; 
-import { collection, addDoc, query, where, getDocs, updateDoc, doc } from 'firebase/firestore'; 
+import { collection, addDoc, query, where, getDocs, updateDoc, doc, arrayUnion } from 'firebase/firestore'; 
 import Link from 'next/link'; 
 import dynamic from 'next/dynamic';
 import emailjs from '@emailjs/browser'; 
-
 
 const MapPicker = dynamic(() => import('./components/MapPicker'), { 
   ssr: false, 
   loading: () => <div className="h-64 w-full bg-slate-100 dark:bg-slate-800 animate-pulse rounded-2xl flex items-center justify-center text-slate-400">Loading Maps...</div>
 });
-// ADD THIS NEW IMPORT:
+
 const SafetyMap = dynamic(() => import('./components/SafetyMap'), { 
   ssr: false, 
   loading: () => <div className="h-[450px] w-full bg-slate-100 dark:bg-slate-800 animate-pulse rounded-2xl flex items-center justify-center text-slate-400 font-bold tracking-widest uppercase">Initializing Heatmap...</div>
 });
+
 const translations = {
   en: {
     heroTitle: "Speak Up. Stay Safe.", heroSub: "Secure, anonymous reporting for a safer Chennai.",
@@ -62,7 +62,7 @@ const CATEGORY_TRANSLATIONS = {
 
 const AREA_TRANSLATIONS = {
   "Adyar": "அடையாறு", "Alandur": "ஆலந்தூர்", "Ambattur": "அம்பத்தூர்", "Anna Nagar": "அண்ணா நகர்", "Ashok Nagar": "அசோக் நகர்", "Avadi": "ஆவடி", 
-  "Ayanavaram": "அயனாவரம்", "Besant Nagar": "பெசன்ட் நகர்", "Chetpet": "சேத்துப்பட்டு", "Chromepet": "குரோம்பேட்டை", "Egmore": "எழும்பூர்", 
+  "Ayanavaram": "அயனாவரம்", "Besant Nagar": "பெசன்ட் নগর", "Chetpet": "சேத்துப்பட்டு", "Chromepet": "குரோம்பேட்டை", "Egmore": "எழும்பூர்", 
   "Guindy": "கிண்டி", "K.K. Nagar": "கே.கே. நகர்", "Kilpauk": "கீழ்ப்பாக்கம்", "Kodambakkam": "கோடம்பாக்கம்", "Kolathur": "கொளத்தூர்", 
   "Korattur": "கொரட்டூர்", "Kotturpuram": "கோட்டூர்புரம்", "Koyambedu": "கோயம்பேடு", "Madhavaram": "மாதவரம்", "Madipakkam": "மடிப்பாக்கம்", 
   "Medavakkam": "மேடவாக்கம்", "Mogappair": "முகப்பேர்", "Mylapore": "மயிலாப்பூர்", "Nandanam": "நந்தனம்", "Nungambakkam": "நுங்கம்பாக்கம்", 
@@ -91,7 +91,7 @@ export default function Home() {
   const [showSplash, setShowSplash] = useState(true);
   const [lang, setLang] = useState('en'); 
   const t = translations[lang]; 
-  const [activeTab, setActiveTab] = useState('report');
+  const [activeTab, setActiveTab] = useState('report'); 
   const [safeViewMode, setSafeViewMode] = useState('map'); 
 
   const { theme, setTheme } = useTheme();
@@ -99,8 +99,7 @@ export default function Home() {
 
   const [desc, setDesc] = useState('');
   const [isRecording, setIsRecording] = useState(false);
- 
-  // NEW EVIDENCE STATES & REFS
+  
   const [evidence, setEvidence] = useState(null);
   const [showEvidenceMenu, setShowEvidenceMenu] = useState(false);
   const cameraRef = useRef(null);
@@ -113,11 +112,13 @@ export default function Home() {
   const [submittedId, setSubmittedId] = useState(null);
   const [requestGuardian, setRequestGuardian] = useState(false);
   const [bounty, setBounty] = useState('');
+  
+  // TRACKING & CHAT STATES
   const [trackInput, setTrackInput] = useState('');
   const [trackResult, setTrackResult] = useState(null);
   const [trackError, setTrackError] = useState('');
+  const [chatInput, setChatInput] = useState('');
   
-  // RIDE GUARD UPDATES (With Name Field)
   const [rideDetails, setRideDetails] = useState({ vehicle: '', time: 10, contact: '', destination: '', userName: '' }); 
   const [rideStatus, setRideStatus] = useState('idle'); 
   const [timer, setTimer] = useState(0);
@@ -131,7 +132,6 @@ export default function Home() {
   const [aiThinking, setAiThinking] = useState(false);
   const [aiSuggestion, setAiSuggestion] = useState('');
   const [blockSubmit, setBlockSubmit] = useState(false);
-  
 
   useEffect(() => { setMounted(true); const timer = setTimeout(() => setShowSplash(false), 2500); return () => clearTimeout(timer); }, []);
 
@@ -170,57 +170,23 @@ export default function Home() {
   const generateID = () => "WB-" + Math.random().toString(36).substr(2, 5).toUpperCase();
   
   const handleRecord = () => {
-    // Check if the browser supports Speech Recognition
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    
-    if (!SpeechRecognition) {
-      alert(lang === 'ta' ? "உங்கள் உலாவி குரல் பதிவை ஆதரிக்கவில்லை (Your browser does not support speech recognition)." : "Your browser does not support speech recognition.");
-      return;
-    }
-
+    if (!SpeechRecognition) { alert(lang === 'ta' ? "உங்கள் உலாவி குரல் பதிவை ஆதரிக்கவில்லை." : "Your browser does not support speech recognition."); return; }
     const recognition = new SpeechRecognition();
-    
-    // Set language dynamically based on the active language tab
     recognition.lang = lang === 'ta' ? 'ta-IN' : 'en-IN'; 
-    recognition.continuous = false; // Stops automatically when the user stops speaking
-    recognition.interimResults = true; // Shows text as they speak
-
-    recognition.onstart = () => {
-      setIsRecording(true);
-    };
-
+    recognition.continuous = false;
+    recognition.interimResults = true; 
+    recognition.onstart = () => setIsRecording(true);
     recognition.onresult = (event) => {
       let finalTranscript = '';
       for (let i = event.resultIndex; i < event.results.length; ++i) {
-        if (event.results[i].isFinal) {
-          finalTranscript += event.results[i][0].transcript;
-        }
+        if (event.results[i].isFinal) finalTranscript += event.results[i][0].transcript;
       }
-      
-      // Append the recognized text to the existing description
-      if (finalTranscript) {
-        setDesc((prev) => prev ? prev + ' ' + finalTranscript : finalTranscript);
-      }
+      if (finalTranscript) setDesc((prev) => prev ? prev + ' ' + finalTranscript : finalTranscript);
     };
-
-    recognition.onerror = (event) => {
-      console.error("Speech recognition error:", event.error);
-      setIsRecording(false);
-      if (event.error === 'not-allowed') {
-        alert(lang === 'ta' ? "மைக்ரோஃபோன் அனுமதி மறுக்கப்பட்டது." : "Microphone access denied.");
-      }
-    };
-
-    recognition.onend = () => {
-      setIsRecording(false);
-    };
-
-    // If already recording, stop it. Otherwise, start it.
-    if (isRecording) {
-      recognition.stop();
-    } else {
-      recognition.start();
-    }
+    recognition.onerror = (event) => setIsRecording(false);
+    recognition.onend = () => setIsRecording(false);
+    if (isRecording) recognition.stop(); else recognition.start();
   };
   
   const handleReportSubmit = async (e) => {
@@ -242,11 +208,13 @@ export default function Home() {
         requiresAgent: requestGuardian, 
         bountyAmount: requestGuardian ? (bounty || "0") : "0", 
         agentStatus: requestGuardian ? "Open" : "NA",
-        
-        // EVIDENCE SECURITY LOGIC
         hasEvidence: !!evidence,
         evidenceName: evidence ? evidence.name : null,
-        evidenceVisibility: "Restricted to Admin/Police Only" // Tells public dashboards to hide this
+        evidenceVisibility: "Restricted to Admin/Police Only",
+        
+        // CHAT FEATURE DEFAULTS
+        chatEnabled: true, // Note: Set to true for demo purposes. In production, Admin enables this.
+        messages: []
       });
       
       setSubmittedId(id); 
@@ -267,8 +235,39 @@ export default function Home() {
     try {
       const q = query(collection(db, "reports"), where("trackingId", "==", trackInput.trim().toUpperCase()));
       const snap = await getDocs(q);
-      if (!snap.empty) setTrackResult(snap.docs[0].data()); else setTrackError(lang==='ta' ? "எண் காணப்படவில்லை" : "ID Not Found");
+      if (!snap.empty) {
+        // Save the document ID along with data so we can update it later
+        setTrackResult({ docId: snap.docs[0].id, ...snap.docs[0].data() });
+      } else {
+        setTrackError(lang==='ta' ? "எண் காணப்படவில்லை" : "ID Not Found");
+      }
     } catch (err) { setTrackError("Error"); }
+  };
+
+  // SEND CHAT MESSAGE
+  const handleSendMessage = async () => {
+    if(!chatInput.trim() || !trackResult?.docId) return;
+    
+    const newMsg = {
+      sender: "Victim / Reporter",
+      text: chatInput,
+      timestamp: new Date().toISOString()
+    };
+
+    try {
+      await updateDoc(doc(db, "reports", trackResult.docId), {
+        messages: arrayUnion(newMsg)
+      });
+      
+      // Update local state to show message instantly
+      setTrackResult(prev => ({
+        ...prev,
+        messages: [...(prev.messages || []), newMsg]
+      }));
+      setChatInput('');
+    } catch (error) {
+      console.error("Failed to send message", error);
+    }
   };
 
   const startRide = () => { 
@@ -301,7 +300,6 @@ export default function Home() {
     return () => clearInterval(interval);
   }, [rideStatus, timer]);
 
-  // EMAILJS SOS
   const triggerLevel1SOS = async () => {
       setRideStatus('danger_level1'); 
       const id = "SOS-" + Math.floor(Math.random() * 10000);
@@ -325,16 +323,14 @@ export default function Home() {
 
           const templateParams = {
               to_email: rideDetails.contact,
-              user_name: rideDetails.userName, // Sending Name to Template
+              user_name: rideDetails.userName, 
               vehicle: rideDetails.vehicle,
               destination: rideDetails.destination || "Unknown Route",
               duration: rideDetails.time
           };
 
           await emailjs.send(SERVICE_ID, TEMPLATE_ID, templateParams, PUBLIC_KEY);
-      } catch (e) { 
-          console.error("SOS Trigger Failed:", e); 
-      }
+      } catch (e) { console.error("SOS Trigger Failed:", e); }
   };
 
   const formatTime = (s) => `${Math.floor(s / 60)}:${s % 60 < 10 ? '0' : ''}${s % 60}`;
@@ -451,10 +447,12 @@ export default function Home() {
                    </div>
                    <textarea placeholder={t.descPlace} value={desc} onChange={(e) => setDesc(e.target.value)} className={`w-full bg-slate-50 dark:bg-slate-800 p-4 rounded-xl text-base h-32 border focus:ring-2 outline-none resize-none ${blockSubmit ? 'border-red-500 focus:ring-red-200' : 'border-slate-200 dark:border-slate-700 focus:ring-blue-500 dark:focus:ring-blue-400'}`} required />
                 </div>
+                
                 <div className="bg-yellow-50 dark:bg-yellow-900/20 p-5 rounded-2xl border border-yellow-200 dark:border-yellow-800/50">
                     <div className="flex items-center gap-4"><input type="checkbox" id="guard" checked={requestGuardian} onChange={(e) => setRequestGuardian(e.target.checked)} className="w-6 h-6 text-blue-600 rounded-md" /><label htmlFor="guard" className="text-base font-bold text-slate-800 dark:text-slate-200 cursor-pointer">{t.agentLabel}</label></div>
                     {requestGuardian && (<div className="mt-4 pl-10 animate-in fade-in slide-in-from-top-2"><label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-2">{t.bountyLabel}</label><input type="number" placeholder="e.g. 100" value={bounty} onChange={(e) => setBounty(e.target.value)} className="w-full bg-white dark:bg-slate-800 p-3 border border-slate-300 dark:border-slate-600 rounded-xl font-bold text-lg dark:text-white" /></div>)}
                 </div>
+
                 <div className="relative">
                   <div 
                     onClick={() => !evidence && setShowEvidenceMenu(!showEvidenceMenu)}
@@ -475,7 +473,6 @@ export default function Home() {
                     )}
                   </div>
 
-                  {/* POPUP MENU FOR CAMERA OR GALLERY */}
                   {showEvidenceMenu && !evidence && (
                     <div className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-slate-800 rounded-xl shadow-xl border border-slate-200 dark:border-slate-700 overflow-hidden z-10 flex flex-col">
                       <button type="button" onClick={() => { cameraRef.current.click(); setShowEvidenceMenu(false); }} className="p-4 flex items-center gap-3 hover:bg-slate-50 dark:hover:bg-slate-700 border-b border-slate-100 dark:border-slate-700 transition text-left">
@@ -487,20 +484,72 @@ export default function Home() {
                     </div>
                   )}
                   
-                  {/* HIDDEN INPUTS TO TRIGGER NATIVE OS BEHAVIOR */}
-                  {/* 'capture="environment"' forces mobile devices to open the rear camera */}
                   <input type="file" accept="image/*,video/*" capture="environment" ref={cameraRef} className="hidden" onChange={(e) => e.target.files[0] && setEvidence(e.target.files[0])} />
-                  {/* No capture attribute allows picking from folder/gallery */}
                   <input type="file" accept="image/*,video/*" ref={galleryRef} className="hidden" onChange={(e) => e.target.files[0] && setEvidence(e.target.files[0])} />
                 </div>
+
                 <div className="rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-700 shadow-inner"><MapPicker location={location} setLocation={setLocation} /></div>
+                
                 <button type="submit" disabled={loadingReport || blockSubmit} className="w-full bg-slate-900 dark:bg-white text-white dark:text-slate-900 py-5 rounded-2xl font-bold text-lg shadow-xl hover:scale-[1.02] active:scale-[0.98] transition disabled:opacity-50 disabled:bg-slate-400">{loadingReport ? t.loadingText : t.submitBtn}</button>
               </form>
             )}
 
-            {activeTab === 'track' && <div className="text-center py-10"><input type="text" placeholder={t.trackPlace} value={trackInput} onChange={(e) => setTrackInput(e.target.value.toUpperCase())} className="w-full bg-slate-100 dark:bg-slate-800 text-center text-3xl font-mono p-5 rounded-2xl uppercase mb-6 tracking-widest border border-slate-200 dark:border-slate-700 outline-none dark:text-white" /><button onClick={handleTrackSearch} className="w-full bg-blue-600 text-white py-4 rounded-xl font-bold text-lg shadow-lg">{t.checkStatusBtn}</button>{trackResult && (<div className="mt-8 bg-white dark:bg-slate-800 p-6 rounded-2xl border border-slate-100 dark:border-slate-700 shadow-lg text-left"><div className="flex justify-between items-center mb-4"><span className="text-xs font-bold text-slate-400 uppercase tracking-widest">Status</span><span className={`px-3 py-1 rounded-full text-xs font-bold uppercase ${trackResult.status === 'Verified' ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400' : 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400'}`}>{trackResult.status}</span></div><p className="text-slate-600 dark:text-slate-300 italic">"{trackResult.adminNote || (lang === 'ta' ? "பரிசீலனையில் உள்ளது..." : "Pending Review...")}"</p></div>)}</div>}
+            {/* TRACKING TAB WITH SECURE CHAT */}
+            {activeTab === 'track' && (
+              <div className="py-6">
+                <input type="text" placeholder={t.trackPlace} value={trackInput} onChange={(e) => setTrackInput(e.target.value.toUpperCase())} className="w-full bg-slate-100 dark:bg-slate-800 text-center text-3xl font-mono p-5 rounded-2xl uppercase mb-6 tracking-widest border border-slate-200 dark:border-slate-700 outline-none dark:text-white" />
+                <button onClick={handleTrackSearch} className="w-full bg-blue-600 text-white py-4 rounded-xl font-bold text-lg shadow-lg">{t.checkStatusBtn}</button>
+                
+                {trackResult && (
+                  <div className="mt-8 bg-white dark:bg-slate-800 p-6 rounded-2xl border border-slate-100 dark:border-slate-700 shadow-lg">
+                    <div className="flex justify-between items-center mb-4">
+                      <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">Status</span>
+                      <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase ${trackResult.status === 'Verified' ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400' : 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400'}`}>{trackResult.status}</span>
+                    </div>
+                    <p className="text-slate-600 dark:text-slate-300 italic mb-6">"{trackResult.adminNote || (lang === 'ta' ? "பரிசீலனையில் உள்ளது..." : "Pending Review...")}"</p>
+                    
+                    {/* CHATBOX UI */}
+                    <div className="border-t border-slate-200 dark:border-slate-700 pt-6">
+                      <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200 mb-4 flex items-center gap-2">
+                        💬 {lang === 'ta' ? "காவல்துறையுடன் பாதுகாப்பான உரையாடல்" : "Secure Chat with Police"}
+                        {trackResult.chatEnabled && <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>}
+                      </h3>
+                      
+                      {trackResult.chatEnabled ? (
+                        <div className="bg-slate-50 dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-700 overflow-hidden flex flex-col h-64">
+                          <div className="flex-1 overflow-y-auto p-4 space-y-3 flex flex-col">
+                            {(trackResult.messages || []).length === 0 ? (
+                              <p className="text-xs text-center text-slate-400 my-auto">
+                                {lang === 'ta' ? "இங்கே தகவல்களைப் பகிரலாம்." : "You can securely share additional info here."}
+                              </p>
+                            ) : (
+                              (trackResult.messages || []).map((msg, idx) => (
+                                <div key={idx} className={`max-w-[80%] p-3 rounded-2xl text-sm ${msg.sender === 'Victim / Reporter' ? 'bg-blue-600 text-white self-end rounded-br-none' : 'bg-slate-200 dark:bg-slate-700 text-slate-800 dark:text-slate-100 self-start rounded-bl-none'}`}>
+                                  <p className="text-[10px] opacity-50 mb-1 font-bold">{msg.sender}</p>
+                                  <p>{msg.text}</p>
+                                </div>
+                              ))
+                            )}
+                          </div>
+                          <div className="p-3 bg-white dark:bg-slate-800 border-t border-slate-200 dark:border-slate-700 flex gap-2">
+                            <input type="text" value={chatInput} onChange={(e) => setChatInput(e.target.value)} placeholder={lang === 'ta' ? "செய்தியை உள்ளிடவும்..." : "Type a message..."} className="flex-1 bg-slate-100 dark:bg-slate-700 p-2 rounded-xl text-sm outline-none dark:text-white" />
+                            <button onClick={handleSendMessage} className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl text-sm font-bold transition">Send</button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="bg-yellow-50 dark:bg-yellow-900/20 p-4 rounded-xl border border-yellow-200 dark:border-yellow-800 text-center">
+                          <p className="text-xs text-yellow-700 dark:text-yellow-500 font-bold">
+                            {lang === 'ta' ? "காவல்துறை இந்த புகாருக்கு உரையாடலை இன்னும் அனுமதிக்கவில்லை." : "Chat is currently locked. Police will enable it if more information is required."}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+
+                  </div>
+                )}
+              </div>
+            )}
             
-            {/* FLAT UI RIDE GUARD WITH NAME AND CANCEL BUTTON */}
             {activeTab === 'ride' && (
               <div className="py-4">
                 {rideStatus === 'idle' ? (
@@ -511,7 +560,6 @@ export default function Home() {
                       <p className="text-xs text-yellow-700 dark:text-yellow-600 mt-2">{lang === 'ta' ? "பயண விவரங்கள் அனாமதேயமாக கண்காணிக்கப்படும்" : "Securely log your journey details"}</p>
                     </div>
                     <div className="space-y-4">
-                      {/* FLAT UI NAME FIELD */}
                       <input type="text" placeholder={t.namePlaceholder} value={rideDetails.userName} onChange={e=>setRideDetails({...rideDetails, userName:e.target.value})} className="w-full bg-slate-50 dark:bg-slate-800 p-4 rounded-xl font-bold text-lg border border-slate-200 dark:border-slate-700 dark:text-white"/>
                       <input type="text" placeholder={t.vehPlaceholder} value={rideDetails.vehicle} onChange={e=>setRideDetails({...rideDetails, vehicle:e.target.value})} className="w-full bg-slate-50 dark:bg-slate-800 p-4 rounded-xl font-bold text-lg border border-slate-200 dark:border-slate-700 dark:text-white"/>
                       <input type="text" placeholder={t.destPlaceholder} value={rideDetails.destination} onChange={e=>setRideDetails({...rideDetails, destination:e.target.value})} className="w-full bg-slate-50 dark:bg-slate-800 p-4 rounded-xl font-bold text-lg border border-slate-200 dark:border-slate-700 dark:text-white"/>
@@ -533,7 +581,6 @@ export default function Home() {
                         <p className="text-xs text-red-500 font-bold mb-4">
                           {lang === 'ta' ? "30 நிமிடங்களில் காவல்துறைக்கு தகவல் அனுப்பப்படும்." : "ESCALATING TO POLICE IN 30 MINUTES."}
                         </p>
-                        {/* FLAT UI CANCEL BUTTON */}
                         <button onClick={endRideSafe} className="w-full bg-green-500 hover:bg-green-600 text-white py-4 rounded-xl font-bold text-lg shadow-lg transition duration-300">
                           ✅ {t.arrivedBtn} (Cancel Alert)
                         </button>
@@ -545,13 +592,13 @@ export default function Home() {
                 )}
               </div>
             )}
+            
             {activeTab === 'safe' && (
               <div className="py-2">
                 <div className="text-center mb-6">
                   <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-100">{t.safeTitle}</h2>
                 </div>
                 
-                {/* VIEW TOGGLE BUTTONS */}
                 <div className="flex justify-center gap-2 mb-6 bg-slate-100 dark:bg-slate-800 p-1 rounded-xl w-fit mx-auto">
                   <button onClick={() => setSafeViewMode('map')} className={`px-5 py-2 rounded-lg text-xs font-bold transition-all ${safeViewMode === 'map' ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700'}`}>🗺️ Live Heatmap</button>
                   <button onClick={() => setSafeViewMode('list')} className={`px-5 py-2 rounded-lg text-xs font-bold transition-all ${safeViewMode === 'list' ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700'}`}>📋 Area List</button>
@@ -585,7 +632,6 @@ export default function Home() {
                 )}
               </div>
             )}
-            
             
             {activeTab === 'fund' && <div className="text-center py-6"><div className="text-6xl mb-6">🤝</div><h2 className="text-2xl font-bold text-slate-800 dark:text-slate-100 mb-3">{t.fundTitle}</h2><p className="text-sm text-slate-500 dark:text-slate-400 mb-8 max-w-sm mx-auto">{t.fundSub}</p><div className="bg-slate-100 dark:bg-slate-800 p-6 rounded-3xl mb-8"><div className="flex justify-between text-xs font-bold text-slate-500 dark:text-slate-400 mb-2"><span>₹{currentFunds.toLocaleString()} {t.fundRaised}</span><span>{t.fundGoal}: ₹{MONTHLY_LIMIT.toLocaleString()}</span></div><div className="w-full bg-slate-300 dark:bg-slate-700 rounded-full h-3 overflow-hidden"><div className="bg-green-500 h-3 rounded-full" style={{ width: `${(currentFunds / MONTHLY_LIMIT) * 100}%` }}></div></div></div><input type="number" placeholder={lang === 'ta' ? "தொகையை உள்ளிடவும் (₹)" : "Enter Amount (₹)"} value={donateAmount} onChange={(e) => setDonateAmount(e.target.value)} className="w-full bg-slate-50 dark:bg-slate-800 text-center text-3xl font-bold p-6 rounded-2xl mb-4 border border-slate-200 dark:border-slate-700 outline-none focus:ring-2 focus:ring-green-500 text-green-700 dark:text-green-500" /><button onClick={handleDonate} className="w-full bg-green-600 text-white py-5 rounded-2xl font-bold text-lg shadow-xl hover:scale-[1.02] transition">{t.donateBtn}</button></div>}
           </div>
