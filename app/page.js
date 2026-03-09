@@ -222,14 +222,38 @@ export default function Home() {
     if(blockSubmit) return alert("Cannot submit: AI flagged content.");
     setLoadingReport(true);
     const id = generateID();
+    
     try {
       await addDoc(collection(db, "reports"), {
-        trackingId: id, description: desc, category, area, timestamp: new Date(), location, 
-        status: "Unverified", language: lang, requiresAgent: requestGuardian, 
-        bountyAmount: requestGuardian ? (bounty || "0") : "0", agentStatus: requestGuardian ? "Open" : "NA"
+        trackingId: id, 
+        description: desc, 
+        category, 
+        area, 
+        timestamp: new Date(), 
+        location, 
+        status: "Unverified", 
+        language: lang, 
+        requiresAgent: requestGuardian, 
+        bountyAmount: requestGuardian ? (bounty || "0") : "0", 
+        agentStatus: requestGuardian ? "Open" : "NA",
+        
+        // EVIDENCE SECURITY LOGIC
+        hasEvidence: !!evidence,
+        evidenceName: evidence ? evidence.name : null,
+        evidenceVisibility: "Restricted to Admin/Police Only" // Tells public dashboards to hide this
       });
-      setSubmittedId(id); setLoadingReport(false); setDesc(''); setLocation(null); setBounty(''); setRequestGuardian(false);
-    } catch (error) { alert('Error'); setLoadingReport(false); }
+      
+      setSubmittedId(id); 
+      setLoadingReport(false); 
+      setDesc(''); 
+      setLocation(null); 
+      setBounty(''); 
+      setRequestGuardian(false); 
+      setEvidence(null);
+    } catch (error) { 
+      alert('Error'); 
+      setLoadingReport(false); 
+    }
   };
 
   const handleTrackSearch = async (e) => {
@@ -425,7 +449,44 @@ export default function Home() {
                     <div className="flex items-center gap-4"><input type="checkbox" id="guard" checked={requestGuardian} onChange={(e) => setRequestGuardian(e.target.checked)} className="w-6 h-6 text-blue-600 rounded-md" /><label htmlFor="guard" className="text-base font-bold text-slate-800 dark:text-slate-200 cursor-pointer">{t.agentLabel}</label></div>
                     {requestGuardian && (<div className="mt-4 pl-10 animate-in fade-in slide-in-from-top-2"><label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-2">{t.bountyLabel}</label><input type="number" placeholder="e.g. 100" value={bounty} onChange={(e) => setBounty(e.target.value)} className="w-full bg-white dark:bg-slate-800 p-3 border border-slate-300 dark:border-slate-600 rounded-xl font-bold text-lg dark:text-white" /></div>)}
                 </div>
-                <div className="border-2 border-dashed border-slate-300 dark:border-slate-700 rounded-2xl p-6 text-center hover:bg-slate-50 dark:hover:bg-slate-800 transition cursor-pointer"><div className="text-2xl mb-2">📸</div><p className="text-sm font-bold text-blue-600 dark:text-blue-400">{t.attachBtn}</p></div>
+                <div className="relative">
+                  <div 
+                    onClick={() => !evidence && setShowEvidenceMenu(!showEvidenceMenu)}
+                    className={`border-2 border-dashed rounded-2xl p-6 text-center transition cursor-pointer ${evidence ? 'border-green-400 bg-green-50 dark:bg-green-900/20' : 'border-slate-300 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800'}`}
+                  >
+                    {evidence ? (
+                      <div>
+                        <div className="text-2xl mb-2">✅</div>
+                        <p className="text-sm font-bold text-green-700 dark:text-green-400">Securely Attached: {evidence.name}</p>
+                        <p className="text-[10px] text-slate-500 mt-1">🔒 Visible only to Admin/Police</p>
+                        <button type="button" onClick={(e) => { e.stopPropagation(); setEvidence(null); }} className="text-xs text-red-500 font-bold mt-3 hover:underline">Remove Evidence</button>
+                      </div>
+                    ) : (
+                      <div>
+                        <div className="text-2xl mb-2">📸</div>
+                        <p className="text-sm font-bold text-blue-600 dark:text-blue-400">{t.attachBtn}</p>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* POPUP MENU FOR CAMERA OR GALLERY */}
+                  {showEvidenceMenu && !evidence && (
+                    <div className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-slate-800 rounded-xl shadow-xl border border-slate-200 dark:border-slate-700 overflow-hidden z-10 flex flex-col">
+                      <button type="button" onClick={() => { cameraRef.current.click(); setShowEvidenceMenu(false); }} className="p-4 flex items-center gap-3 hover:bg-slate-50 dark:hover:bg-slate-700 border-b border-slate-100 dark:border-slate-700 transition text-left">
+                        <span className="text-xl">📷</span> <span className="font-bold text-slate-700 dark:text-slate-200">{lang === 'ta' ? 'கேமரா (Take Photo/Video)' : 'Camera (Take Photo/Video)'}</span>
+                      </button>
+                      <button type="button" onClick={() => { galleryRef.current.click(); setShowEvidenceMenu(false); }} className="p-4 flex items-center gap-3 hover:bg-slate-50 dark:hover:bg-slate-700 transition text-left">
+                        <span className="text-xl">📁</span> <span className="font-bold text-slate-700 dark:text-slate-200">{lang === 'ta' ? 'கேலரி (Browse Files)' : 'Gallery (Browse Files)'}</span>
+                      </button>
+                    </div>
+                  )}
+                  
+                  {/* HIDDEN INPUTS TO TRIGGER NATIVE OS BEHAVIOR */}
+                  {/* 'capture="environment"' forces mobile devices to open the rear camera */}
+                  <input type="file" accept="image/*,video/*" capture="environment" ref={cameraRef} className="hidden" onChange={(e) => e.target.files[0] && setEvidence(e.target.files[0])} />
+                  {/* No capture attribute allows picking from folder/gallery */}
+                  <input type="file" accept="image/*,video/*" ref={galleryRef} className="hidden" onChange={(e) => e.target.files[0] && setEvidence(e.target.files[0])} />
+                </div>
                 <div className="rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-700 shadow-inner"><MapPicker location={location} setLocation={setLocation} /></div>
                 <button type="submit" disabled={loadingReport || blockSubmit} className="w-full bg-slate-900 dark:bg-white text-white dark:text-slate-900 py-5 rounded-2xl font-bold text-lg shadow-xl hover:scale-[1.02] active:scale-[0.98] transition disabled:opacity-50 disabled:bg-slate-400">{loadingReport ? t.loadingText : t.submitBtn}</button>
               </form>
