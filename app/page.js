@@ -92,6 +92,8 @@ export default function Home() {
   const [mounted, setMounted] = useState(false);
 
   const [desc, setDesc] = useState('');
+  const [isRecording, setIsRecording] = useState(false);
+
   const [category, setCategory] = useState('Cyber Fraud');
   const [area, setArea] = useState('Anna Nagar'); 
   const [location, setLocation] = useState(null); 
@@ -153,6 +155,60 @@ export default function Home() {
   }, [desc, category, lang]); 
 
   const generateID = () => "WB-" + Math.random().toString(36).substr(2, 5).toUpperCase();
+  
+  const handleRecord = () => {
+    // Check if the browser supports Speech Recognition
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    
+    if (!SpeechRecognition) {
+      alert(lang === 'ta' ? "உங்கள் உலாவி குரல் பதிவை ஆதரிக்கவில்லை (Your browser does not support speech recognition)." : "Your browser does not support speech recognition.");
+      return;
+    }
+
+    const recognition = new SpeechRecognition();
+    
+    // Set language dynamically based on the active language tab
+    recognition.lang = lang === 'ta' ? 'ta-IN' : 'en-IN'; 
+    recognition.continuous = false; // Stops automatically when the user stops speaking
+    recognition.interimResults = true; // Shows text as they speak
+
+    recognition.onstart = () => {
+      setIsRecording(true);
+    };
+
+    recognition.onresult = (event) => {
+      let finalTranscript = '';
+      for (let i = event.resultIndex; i < event.results.length; ++i) {
+        if (event.results[i].isFinal) {
+          finalTranscript += event.results[i][0].transcript;
+        }
+      }
+      
+      // Append the recognized text to the existing description
+      if (finalTranscript) {
+        setDesc((prev) => prev ? prev + ' ' + finalTranscript : finalTranscript);
+      }
+    };
+
+    recognition.onerror = (event) => {
+      console.error("Speech recognition error:", event.error);
+      setIsRecording(false);
+      if (event.error === 'not-allowed') {
+        alert(lang === 'ta' ? "மைக்ரோஃபோன் அனுமதி மறுக்கப்பட்டது." : "Microphone access denied.");
+      }
+    };
+
+    recognition.onend = () => {
+      setIsRecording(false);
+    };
+
+    // If already recording, stop it. Otherwise, start it.
+    if (isRecording) {
+      recognition.stop();
+    } else {
+      recognition.start();
+    }
+  };
   
   const handleReportSubmit = async (e) => {
     e.preventDefault(); 
@@ -344,7 +400,17 @@ export default function Home() {
                    <div className="flex justify-between items-end mb-2">
                       <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">{t.descLabel}</label>
                       {aiThinking && <span className="text-[10px] text-purple-600 dark:text-purple-400 font-bold animate-pulse">✨ AI Analyzing...</span>}
-                      <button type="button" className="text-xs flex items-center gap-1.5 text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30 px-3 py-1.5 rounded-full hover:bg-blue-100 dark:hover:bg-blue-900/50 font-bold">{t.recordBtn}</button>
+                      <button 
+                        type="button" 
+                        onClick={handleRecord}
+                        className={`text-xs flex items-center gap-1.5 px-3 py-1.5 rounded-full font-bold transition-all ${
+                          isRecording 
+                            ? 'bg-red-100 dark:bg-red-900/50 text-red-600 dark:text-red-400 animate-pulse border border-red-300' 
+                            : 'text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30 hover:bg-blue-100 dark:hover:bg-blue-900/50'
+                        }`}
+                      >
+                        {isRecording ? (lang === 'ta' ? '🛑 கேட்கிறது...' : '🛑 Listening...') : t.recordBtn}
+                      </button>
                    </div>
                    <textarea placeholder={t.descPlace} value={desc} onChange={(e) => setDesc(e.target.value)} className={`w-full bg-slate-50 dark:bg-slate-800 p-4 rounded-xl text-base h-32 border focus:ring-2 outline-none resize-none ${blockSubmit ? 'border-red-500 focus:ring-red-200' : 'border-slate-200 dark:border-slate-700 focus:ring-blue-500 dark:focus:ring-blue-400'}`} required />
                 </div>
