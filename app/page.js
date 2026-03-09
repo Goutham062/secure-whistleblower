@@ -12,7 +12,11 @@ const MapPicker = dynamic(() => import('./components/MapPicker'), {
   ssr: false, 
   loading: () => <div className="h-64 w-full bg-slate-100 dark:bg-slate-800 animate-pulse rounded-2xl flex items-center justify-center text-slate-400">Loading Maps...</div>
 });
-
+// ADD THIS NEW IMPORT:
+const SafetyMap = dynamic(() => import('./components/SafetyMap'), { 
+  ssr: false, 
+  loading: () => <div className="h-[450px] w-full bg-slate-100 dark:bg-slate-800 animate-pulse rounded-2xl flex items-center justify-center text-slate-400 font-bold tracking-widest uppercase">Initializing Heatmap...</div>
+});
 const translations = {
   en: {
     heroTitle: "Speak Up. Stay Safe.", heroSub: "Secure, anonymous reporting for a safer Chennai.",
@@ -87,7 +91,8 @@ export default function Home() {
   const [showSplash, setShowSplash] = useState(true);
   const [lang, setLang] = useState('en'); 
   const t = translations[lang]; 
-  const [activeTab, setActiveTab] = useState('report'); 
+  const [activeTab, setActiveTab] = useState('report');
+  const [safeViewMode, setSafeViewMode] = useState('map'); 
 
   const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
@@ -126,6 +131,7 @@ export default function Home() {
   const [aiThinking, setAiThinking] = useState(false);
   const [aiSuggestion, setAiSuggestion] = useState('');
   const [blockSubmit, setBlockSubmit] = useState(false);
+  
 
   useEffect(() => { setMounted(true); const timer = setTimeout(() => setShowSplash(false), 2500); return () => clearTimeout(timer); }, []);
 
@@ -539,8 +545,47 @@ export default function Home() {
                 )}
               </div>
             )}
+            {activeTab === 'safe' && (
+              <div className="py-2">
+                <div className="text-center mb-6">
+                  <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-100">{t.safeTitle}</h2>
+                </div>
+                
+                {/* VIEW TOGGLE BUTTONS */}
+                <div className="flex justify-center gap-2 mb-6 bg-slate-100 dark:bg-slate-800 p-1 rounded-xl w-fit mx-auto">
+                  <button onClick={() => setSafeViewMode('map')} className={`px-5 py-2 rounded-lg text-xs font-bold transition-all ${safeViewMode === 'map' ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700'}`}>🗺️ Live Heatmap</button>
+                  <button onClick={() => setSafeViewMode('list')} className={`px-5 py-2 rounded-lg text-xs font-bold transition-all ${safeViewMode === 'list' ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700'}`}>📋 Area List</button>
+                </div>
+
+                {loadingSafe ? (
+                  <p className="text-center text-slate-400 font-bold animate-pulse">Loading Safety Data...</p>
+                ) : (
+                  <div>
+                    {safeViewMode === 'map' ? (
+                      <div className="animate-in fade-in zoom-in-95 duration-300">
+                        <SafetyMap data={areaSafety} />
+                      </div>
+                    ) : (
+                      <div className="space-y-3 h-[450px] overflow-y-auto pr-2 custom-scrollbar animate-in fade-in duration-300">
+                        {areaSafety.map((item) => (
+                          <div key={item.name} className={`flex justify-between items-center p-5 rounded-2xl border transition-all hover:scale-[1.01] ${item.color}`}>
+                            <div className="flex items-center gap-4">
+                              <div className={`w-4 h-4 rounded-full shadow-sm ${item.status === 'Safe' ? 'bg-green-500' : item.status.includes('Caution') ? 'bg-yellow-500' : 'bg-red-600 animate-pulse'}`}></div>
+                              <span className="font-bold text-base text-slate-800 dark:text-slate-200">{lang === 'ta' ? AREA_TRANSLATIONS[item.name] : item.name}</span>
+                            </div>
+                            <div className="text-right">
+                              <span className="block text-[10px] font-extrabold uppercase tracking-widest opacity-60 dark:text-slate-300">{lang === 'ta' ? (item.status === 'Safe' ? t.safeStatus : item.status === 'Caution' ? t.cautionStatus : t.highRiskStatus) : item.status}</span>
+                              <span className="text-sm font-bold dark:text-slate-200">{item.count} {t.reportsText}</span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
             
-            {activeTab === 'safe' && <div className="py-2"><div className="text-center mb-8"><h2 className="text-2xl font-bold text-slate-800 dark:text-slate-100">{t.safeTitle}</h2></div>{loadingSafe ? <p className="text-center text-slate-400">Loading...</p> : (<div className="space-y-3 h-[500px] overflow-y-auto pr-2 custom-scrollbar">{areaSafety.map((item) => (<div key={item.name} className={`flex justify-between items-center p-5 rounded-2xl border transition-all hover:scale-[1.01] ${item.color}`}><div className="flex items-center gap-4"><div className={`w-4 h-4 rounded-full shadow-sm ${item.status === 'Safe' ? 'bg-green-500' : item.status.includes('Caution') ? 'bg-yellow-500' : 'bg-red-600 animate-pulse'}`}></div><span className="font-bold text-base text-slate-800 dark:text-slate-200">{lang === 'ta' ? AREA_TRANSLATIONS[item.name] : item.name}</span></div><div className="text-right"><span className="block text-[10px] font-extrabold uppercase tracking-widest opacity-60 dark:text-slate-300">{lang === 'ta' ? (item.status === 'Safe' ? t.safeStatus : item.status === 'Caution' ? t.cautionStatus : t.highRiskStatus) : item.status}</span><span className="text-sm font-bold dark:text-slate-200">{item.count} {t.reportsText}</span></div></div>))}</div>)}</div>}
             
             {activeTab === 'fund' && <div className="text-center py-6"><div className="text-6xl mb-6">🤝</div><h2 className="text-2xl font-bold text-slate-800 dark:text-slate-100 mb-3">{t.fundTitle}</h2><p className="text-sm text-slate-500 dark:text-slate-400 mb-8 max-w-sm mx-auto">{t.fundSub}</p><div className="bg-slate-100 dark:bg-slate-800 p-6 rounded-3xl mb-8"><div className="flex justify-between text-xs font-bold text-slate-500 dark:text-slate-400 mb-2"><span>₹{currentFunds.toLocaleString()} {t.fundRaised}</span><span>{t.fundGoal}: ₹{MONTHLY_LIMIT.toLocaleString()}</span></div><div className="w-full bg-slate-300 dark:bg-slate-700 rounded-full h-3 overflow-hidden"><div className="bg-green-500 h-3 rounded-full" style={{ width: `${(currentFunds / MONTHLY_LIMIT) * 100}%` }}></div></div></div><input type="number" placeholder={lang === 'ta' ? "தொகையை உள்ளிடவும் (₹)" : "Enter Amount (₹)"} value={donateAmount} onChange={(e) => setDonateAmount(e.target.value)} className="w-full bg-slate-50 dark:bg-slate-800 text-center text-3xl font-bold p-6 rounded-2xl mb-4 border border-slate-200 dark:border-slate-700 outline-none focus:ring-2 focus:ring-green-500 text-green-700 dark:text-green-500" /><button onClick={handleDonate} className="w-full bg-green-600 text-white py-5 rounded-2xl font-bold text-lg shadow-xl hover:scale-[1.02] transition">{t.donateBtn}</button></div>}
           </div>
