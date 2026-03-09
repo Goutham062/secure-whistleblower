@@ -6,6 +6,7 @@ import { collection, addDoc, query, where, getDocs, updateDoc, doc } from 'fireb
 import Link from 'next/link'; 
 import dynamic from 'next/dynamic';
 import emailjs from '@emailjs/browser'; 
+import { useState, useEffect, useRef } from 'react';
 
 const MapPicker = dynamic(() => import('./components/MapPicker'), { 
   ssr: false, 
@@ -93,6 +94,12 @@ export default function Home() {
 
   const [desc, setDesc] = useState('');
   const [isRecording, setIsRecording] = useState(false);
+ 
+  // NEW EVIDENCE STATES & REFS
+  const [evidence, setEvidence] = useState(null);
+  const [showEvidenceMenu, setShowEvidenceMenu] = useState(false);
+  const cameraRef = useRef(null);
+  const galleryRef = useRef(null);
 
   const [category, setCategory] = useState('Cyber Fraud');
   const [area, setArea] = useState('Anna Nagar'); 
