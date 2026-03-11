@@ -24,7 +24,7 @@ const translations = {
     submitBtn: "Submit Secure Report", adminLogin: "Official Login",
     descLabel: "Description", descPlace: "Describe what happened...",
     agentLabel: "Request Guardian Verification?", agentSub: "A verified partner will visit the spot to check.", bountyLabel: "Offer Bounty (₹)",
-    catLabel: "Category", locLabel: "Location", urgentGrp: "🚨 Urgent", civicGrp: "🚧 Civic",
+    catLabel: "Category", locLabel: "Location", urgentGrp: "🚨 Urgent Whistleblower", civicGrp: "🚧 Civic & Infrastructure",
     recordBtn: "🎙️ Record", attachBtn: "Attach Evidence", checkStatusBtn: "Check Status", trackPlace: "WB-XXXX",
     rideTitle: "Dead Man's Switch", vehPlaceholder: "Vehicle No (e.g., TN01 AB 1234)", minPlaceholder: "Minutes to Destination", 
     contactPlaceholder: "Emergency Email Address", destPlaceholder: "Where are you going?",
@@ -54,15 +54,28 @@ const translations = {
   }
 };
 
+// FULLY EXPANDED CATEGORY DICTIONARY
 const CATEGORY_TRANSLATIONS = {
-  "Harassment": "தொல்லை (Harassment)", "Chain Snatching": "சங்கிலி பறிப்பு (Chain Snatching)", "Theft": "திருட்டு (Theft)",
-  "Suspicious Activity": "சந்தேகத்திற்குரிய செயல்", "Cyber Fraud": "இணைய மோசடி (Cyber Fraud)", 
-  "Street Light Issue": "தெரு விளக்கு பிரச்சனை", "Public Nuisance": "பொது தொல்லை", "Rash Driving": "அலட்சியமான ஓட்டுநர்"
+  "Harassment / Eve Teasing": "தொல்லை / ஈவ் டீசிங்", 
+  "Suspicious Activity": "சந்தேகத்திற்குரிய செயல்", 
+  "Cyber Fraud / Scam": "இணைய மோசடி", 
+  "Bribery / Corruption": "லஞ்சம் / ஊழல்",
+  "Illegal Substance Sales": "போதைப்பொருள் விற்பனை",
+  "Child Labor / Abuse": "குழந்தைத் தொழிலாளர் / வன்கொடுமை",
+  "Domestic Violence": "குடும்ப வன்முறை",
+  "Illegal Gambling": "சட்டவிரோத சூதாட்டம்",
+  "Dark Spots / Streetlights": "இருட்டான பகுதி / தெரு விளக்கு", 
+  "Public Nuisance": "பொது தொல்லை", 
+  "Traffic Violation": "போக்குவரத்து விதிமீறல்",
+  "Illegal Dumping": "சட்டவிரோத குப்பை / ஆக்கிரமிப்பு",
+  "Potholes / Damaged Roads": "திறந்த குழிகள் / சாலை சேதம்",
+  "Water Logging": "நீர் தேக்கம்",
+  "Noise Pollution": "ஒலி மாசு"
 };
 
 const AREA_TRANSLATIONS = {
   "Adyar": "அடையாறு", "Alandur": "ஆலந்தூர்", "Ambattur": "அம்பத்தூர்", "Anna Nagar": "அண்ணா நகர்", "Ashok Nagar": "அசோக் நகர்", "Avadi": "ஆவடி", 
-  "Ayanavaram": "அயனாவரம்", "Besant Nagar": "பெசன்ட் নগর", "Chetpet": "சேத்துப்பட்டு", "Chromepet": "குரோம்பேட்டை", "Egmore": "எழும்பூர்", 
+  "Ayanavaram": "அயனாவரம்", "Besant Nagar": "பெசன்ட் நகர்", "Chetpet": "சேத்துப்பட்டு", "Chromepet": "குரோம்பேட்டை", "Egmore": "எழும்பூர்", 
   "Guindy": "கிண்டி", "K.K. Nagar": "கே.கே. நகர்", "Kilpauk": "கீழ்ப்பாக்கம்", "Kodambakkam": "கோடம்பாக்கம்", "Kolathur": "கொளத்தூர்", 
   "Korattur": "கொரட்டூர்", "Kotturpuram": "கோட்டூர்புரம்", "Koyambedu": "கோயம்பேடு", "Madhavaram": "மாதவரம்", "Madipakkam": "மடிப்பாக்கம்", 
   "Medavakkam": "மேடவாக்கம்", "Mogappair": "முகப்பேர்", "Mylapore": "மயிலாப்பூர்", "Nandanam": "நந்தனம்", "Nungambakkam": "நுங்கம்பாக்கம்", 
@@ -77,13 +90,22 @@ const AREA_TRANSLATIONS = {
 const CHENNAI_AREAS = Object.keys(AREA_TRANSLATIONS).filter(a => a !== "Not in Chennai");
 const MONTHLY_LIMIT = 500000; 
 
+// UPGRADED AI DETECTION KEYWORDS
 const AI_KEYWORDS = {
-  "Cyber Fraud": ["otp", "bank", "money", "scam", "hacked", "password", "fake call", "link"],
-  "Chain Snatching": ["chain", "gold", "necklace", "snatched", "bike", "thieves"],
-  "Harassment": ["following", "stalking", "catcalling", "abuse", "touch", "women"],
-  "Street Light Issue": ["dark", "light", "bulb", "night", "blackout"],
-  "Rash Driving": ["speed", "racing", "rash", "driving", "hit", "drunk"],
-  "Public Nuisance": ["garbage", "smell", "noise", "loud", "drinking", "fight"]
+  "Cyber Fraud / Scam": ["otp", "bank", "money", "scam", "hacked", "password", "fake call", "link", "loan"],
+  "Harassment / Eve Teasing": ["following", "stalking", "catcalling", "abuse", "touch", "women", "teasing"],
+  "Dark Spots / Streetlights": ["dark", "light", "bulb", "night", "blackout", "no light"],
+  "Traffic Violation": ["speed", "racing", "rash", "driving", "hit", "drunk", "signal", "helmet"],
+  "Public Nuisance": ["drinking", "fight", "spitting", "smoking"],
+  "Illegal Dumping": ["garbage", "trash", "waste", "dump", "smell"],
+  "Bribery / Corruption": ["bribe", "money", "official", "corrupt", "pay", "demand"],
+  "Illegal Substance Sales": ["drugs", "weed", "ganja", "selling", "smuggling"],
+  "Child Labor / Abuse": ["child", "working", "kid", "beating", "crying"],
+  "Domestic Violence": ["husband", "wife", "beating", "screaming", "hitting", "domestic"],
+  "Illegal Gambling": ["betting", "gambling", "cards", "money", "playing"],
+  "Potholes / Damaged Roads": ["pothole", "road", "broken", "pit", "accident hazard"],
+  "Water Logging": ["flood", "water", "drain", "logging", "stagnant"],
+  "Noise Pollution": ["loud", "speaker", "noise", "sound", "dj"]
 };
 const BAD_WORDS = ["stupid", "idiot", "fake", "prank", "test", "kill", "bomb"]; 
 
@@ -105,7 +127,7 @@ export default function Home() {
   const cameraRef = useRef(null);
   const galleryRef = useRef(null);
 
-  const [category, setCategory] = useState('Cyber Fraud');
+  const [category, setCategory] = useState('Cyber Fraud / Scam');
   const [area, setArea] = useState('Anna Nagar'); 
   const [location, setLocation] = useState(null); 
   const [loadingReport, setLoadingReport] = useState(false);
@@ -407,18 +429,27 @@ export default function Home() {
                 <div>
                   <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-2">{t.catLabel}</label>
                   <div className={`transition-all duration-300 ${aiSuggestion ? 'mb-2 p-2 bg-purple-50 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 text-xs font-bold rounded-lg border border-purple-200 dark:border-purple-800' : 'h-0 overflow-hidden'}`}>{aiSuggestion}</div>
+                  
+                  {/* EXPANDED DROPDOWN MENU */}
                   <select value={category} onChange={(e) => setCategory(e.target.value)} className="w-full bg-slate-50 dark:bg-slate-800 p-4 rounded-xl font-bold text-slate-700 dark:text-slate-200 text-base appearance-none border border-slate-200 dark:border-slate-700 outline-none">
                       <optgroup label={t.urgentGrp}>
-                        <option value="Harassment">{lang === 'ta' ? CATEGORY_TRANSLATIONS["Harassment"] : "Harassment"}</option>
-                        <option value="Chain Snatching">{lang === 'ta' ? CATEGORY_TRANSLATIONS["Chain Snatching"] : "Chain Snatching"}</option>
-                        <option value="Theft">{lang === 'ta' ? CATEGORY_TRANSLATIONS["Theft"] : "Theft"}</option>
+                        <option value="Harassment / Eve Teasing">{lang === 'ta' ? CATEGORY_TRANSLATIONS["Harassment / Eve Teasing"] : "Harassment / Eve Teasing"}</option>
                         <option value="Suspicious Activity">{lang === 'ta' ? CATEGORY_TRANSLATIONS["Suspicious Activity"] : "Suspicious Activity"}</option>
-                        <option value="Cyber Fraud">{lang === 'ta' ? CATEGORY_TRANSLATIONS["Cyber Fraud"] : "Cyber Fraud"}</option>
+                        <option value="Cyber Fraud / Scam">{lang === 'ta' ? CATEGORY_TRANSLATIONS["Cyber Fraud / Scam"] : "Cyber Fraud / Scam"}</option>
+                        <option value="Bribery / Corruption">{lang === 'ta' ? CATEGORY_TRANSLATIONS["Bribery / Corruption"] : "Bribery / Corruption"}</option>
+                        <option value="Illegal Substance Sales">{lang === 'ta' ? CATEGORY_TRANSLATIONS["Illegal Substance Sales"] : "Illegal Substance Sales"}</option>
+                        <option value="Child Labor / Abuse">{lang === 'ta' ? CATEGORY_TRANSLATIONS["Child Labor / Abuse"] : "Child Labor / Abuse"}</option>
+                        <option value="Domestic Violence">{lang === 'ta' ? CATEGORY_TRANSLATIONS["Domestic Violence"] : "Domestic Violence"}</option>
+                        <option value="Illegal Gambling">{lang === 'ta' ? CATEGORY_TRANSLATIONS["Illegal Gambling"] : "Illegal Gambling"}</option>
                       </optgroup>
                       <optgroup label={t.civicGrp}>
-                        <option value="Street Light Issue">{lang === 'ta' ? CATEGORY_TRANSLATIONS["Street Light Issue"] : "Street Light Issue"}</option>
+                        <option value="Dark Spots / Streetlights">{lang === 'ta' ? CATEGORY_TRANSLATIONS["Dark Spots / Streetlights"] : "Dark Spots / Streetlights"}</option>
                         <option value="Public Nuisance">{lang === 'ta' ? CATEGORY_TRANSLATIONS["Public Nuisance"] : "Public Nuisance"}</option>
-                        <option value="Rash Driving">{lang === 'ta' ? CATEGORY_TRANSLATIONS["Rash Driving"] : "Rash Driving"}</option>
+                        <option value="Traffic Violation">{lang === 'ta' ? CATEGORY_TRANSLATIONS["Traffic Violation"] : "Traffic Violation"}</option>
+                        <option value="Illegal Dumping">{lang === 'ta' ? CATEGORY_TRANSLATIONS["Illegal Dumping"] : "Illegal Dumping"}</option>
+                        <option value="Potholes / Damaged Roads">{lang === 'ta' ? CATEGORY_TRANSLATIONS["Potholes / Damaged Roads"] : "Potholes / Damaged Roads"}</option>
+                        <option value="Water Logging">{lang === 'ta' ? CATEGORY_TRANSLATIONS["Water Logging"] : "Water Logging"}</option>
+                        <option value="Noise Pollution">{lang === 'ta' ? CATEGORY_TRANSLATIONS["Noise Pollution"] : "Noise Pollution"}</option>
                       </optgroup>
                   </select>
                 </div>
@@ -447,7 +478,6 @@ export default function Home() {
                    </div>
                    <textarea placeholder={t.descPlace} value={desc} onChange={(e) => setDesc(e.target.value)} className={`w-full bg-slate-50 dark:bg-slate-800 p-4 rounded-xl text-base h-32 border focus:ring-2 outline-none resize-none ${blockSubmit ? 'border-red-500 focus:ring-red-200' : 'border-slate-200 dark:border-slate-700 focus:ring-blue-500 dark:focus:ring-blue-400'}`} required />
                 </div>
-                
                 <div className="bg-yellow-50 dark:bg-yellow-900/20 p-5 rounded-2xl border border-yellow-200 dark:border-yellow-800/50">
                     <div className="flex items-center gap-4"><input type="checkbox" id="guard" checked={requestGuardian} onChange={(e) => setRequestGuardian(e.target.checked)} className="w-6 h-6 text-blue-600 rounded-md" /><label htmlFor="guard" className="text-base font-bold text-slate-800 dark:text-slate-200 cursor-pointer">{t.agentLabel}</label></div>
                     {requestGuardian && (<div className="mt-4 pl-10 animate-in fade-in slide-in-from-top-2"><label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-2">{t.bountyLabel}</label><input type="number" placeholder="e.g. 100" value={bounty} onChange={(e) => setBounty(e.target.value)} className="w-full bg-white dark:bg-slate-800 p-3 border border-slate-300 dark:border-slate-600 rounded-xl font-bold text-lg dark:text-white" /></div>)}
