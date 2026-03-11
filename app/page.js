@@ -33,7 +33,8 @@ const translations = {
     safeTitle: "Safety Heatmap", reportsText: "Reports", safeStatus: "Safe", cautionStatus: "Caution", highRiskStatus: "High Risk",
     fundTitle: "Support the Mission", fundSub: "Anonymous donations to fund Guardians.", fundGoal: "Goal", fundRaised: "Raised", donateBtn: "Donate Anonymously",
     loadingText: "Encrypting...", doneBtn: "Done", reportLogTitle: "Report Logged", trackIdText: "Tracking ID",
-    officialApp: "Official TN Police App"
+    officialApp: "Official TN Police App",
+    captchaLabel: "Security Check: Are you human?", captchaError: "Incorrect Security Captcha!", spamError: "Anti-Spam: You have reached the maximum of 3 reports for today. Please try again tomorrow."
   },
   ta: {
     heroTitle: "துணிந்து பேசுங்கள்.", heroSub: "பாதுகாப்பான சென்னைக்காக அனாமதேய புகார் சேவை.",
@@ -50,11 +51,11 @@ const translations = {
     safeTitle: "பாதுகாப்பு வரைபடம்", reportsText: "புகார்கள்", safeStatus: "பாதுகாப்பானது", cautionStatus: "எச்சரிக்கை", highRiskStatus: "ஆபத்து",
     fundTitle: "எங்கள் நோக்கத்திற்கு உதவுங்கள்", fundSub: "காவலர்களுக்கு நிதியளிக்க அனாமதேய நன்கொடைகள்.", fundGoal: "இலக்கு", fundRaised: "திரட்டப்பட்டது", donateBtn: "அனாமதேயமாக நன்கொடை அளிக்கவும்",
     loadingText: "குறியாக்கம் செய்யப்படுகிறது...", doneBtn: "முடிந்தது", reportLogTitle: "புகார் பதிவு செய்யப்பட்டது", trackIdText: "கண்காணிப்பு எண்",
-    officialApp: "அதிகாரப்பூர்வ தமிழ்நாடு காவல்துறை செயலி"
+    officialApp: "அதிகாரப்பூர்வ தமிழ்நாடு காவல்துறை செயலி",
+    captchaLabel: "பாதுகாப்பு சோதனை: நீங்கள் மனிதரா?", captchaError: "தவறான பாதுகாப்பு குறியீடு!", spamError: "ஸ்பேம் தடுப்பு: நீங்கள் இன்று அதிகபட்சமாக 3 புகார்களை அனுப்பியுள்ளீர்கள். நாளை முயற்சிக்கவும்."
   }
 };
 
-// FULLY EXPANDED CATEGORY DICTIONARY
 const CATEGORY_TRANSLATIONS = {
   "Harassment / Eve Teasing": "தொல்லை / ஈவ் டீசிங்", 
   "Suspicious Activity": "சந்தேகத்திற்குரிய செயல்", 
@@ -90,7 +91,6 @@ const AREA_TRANSLATIONS = {
 const CHENNAI_AREAS = Object.keys(AREA_TRANSLATIONS).filter(a => a !== "Not in Chennai");
 const MONTHLY_LIMIT = 500000; 
 
-// UPGRADED AI DETECTION KEYWORDS
 const AI_KEYWORDS = {
   "Cyber Fraud / Scam": ["otp", "bank", "money", "scam", "hacked", "password", "fake call", "link", "loan"],
   "Harassment / Eve Teasing": ["following", "stalking", "catcalling", "abuse", "touch", "women", "teasing"],
@@ -155,7 +155,42 @@ export default function Home() {
   const [aiSuggestion, setAiSuggestion] = useState('');
   const [blockSubmit, setBlockSubmit] = useState(false);
 
-  useEffect(() => { setMounted(true); const timer = setTimeout(() => setShowSplash(false), 2500); return () => clearTimeout(timer); }, []);
+  // --- NEW SECURITY & ANTI-SPAM STATES ---
+  const [deviceId, setDeviceId] = useState('');
+  const [userIp, setUserIp] = useState('Unknown');
+  const [captchaNum1, setCaptchaNum1] = useState(0);
+  const [captchaNum2, setCaptchaNum2] = useState(0);
+  const [captchaInput, setCaptchaInput] = useState('');
+
+  useEffect(() => { 
+    setMounted(true); 
+    const splashTimer = setTimeout(() => setShowSplash(false), 2500); 
+
+    // 1. DEVICE FINGERPRINTING
+    let storedId = localStorage.getItem('sw_device_id');
+    if (!storedId) {
+      storedId = 'DEV-' + Math.random().toString(36).substr(2, 9) + Date.now();
+      localStorage.setItem('sw_device_id', storedId);
+    }
+    setDeviceId(storedId);
+
+    // 2. IP FETCHING FOR RATE LIMITING
+    fetch('https://api.ipify.org?format=json')
+      .then(res => res.json())
+      .then(data => setUserIp(data.ip))
+      .catch(() => console.log("IP fetch failed"));
+
+    // 3. INITIALIZE CAPTCHA
+    refreshCaptcha();
+
+    return () => clearTimeout(splashTimer); 
+  }, []);
+
+  const refreshCaptcha = () => {
+    setCaptchaNum1(Math.floor(Math.random() * 10) + 1);
+    setCaptchaNum2(Math.floor(Math.random() * 10) + 1);
+    setCaptchaInput('');
+  };
 
   useEffect(() => {
     if (desc.length > 5) {
@@ -213,8 +248,46 @@ export default function Home() {
   
   const handleReportSubmit = async (e) => {
     e.preventDefault(); 
+
+    // --- SECURITY CHECK 1: CAPTCHA ---
+    if (parseInt(captchaInput) !== (captchaNum1 + captchaNum2)) {
+        alert(t.captchaError);
+        refreshCaptcha();
+        return;
+    }
+
     if(blockSubmit) return alert("Cannot submit: AI flagged content.");
     setLoadingReport(true);
+    
+    // --- SECURITY CHECK 2 & 3: RATE LIMITING & FINGERPRINTING ---
+    try {
+      const qRateLimit = query(collection(db, "reports"), where("deviceId", "==", deviceId));
+      const rateSnap = await getDocs(qRateLimit);
+      
+      // Filter manually to avoid forcing the user to create complex Firebase indexes
+      const recentReports = rateSnap.docs.filter(d => {
+         const timestamp = d.data().timestamp?.toDate();
+         if (!timestamp) return false;
+         const hoursDiff = (new Date() - timestamp) / (1000 * 60 * 60);
+         return hoursDiff < 24; // Less than 24 hours ago
+      });
+
+      if (recentReports.length >= 3) {
+          alert(t.spamError);
+          setLoadingReport(false);
+          refreshCaptcha();
+          return;
+      }
+    } catch (err) {
+      console.error("Rate Limit Error", err);
+    }
+
+    // --- SECURITY CHECK 4: TRUST SCORE ---
+    let calculatedTrustScore = 10; // Base score
+    if (desc.length > 50) calculatedTrustScore += 20; // Detailed description
+    if (evidence) calculatedTrustScore += 40; // Hard evidence provided
+    if (location) calculatedTrustScore += 30; // GPS location provided
+
     const id = generateID();
     
     try {
@@ -225,7 +298,14 @@ export default function Home() {
         area, 
         timestamp: new Date(), 
         location, 
-        status: "Unverified", 
+        
+        // NEW GUARDIAN QUEUE & SECURITY FIELDS
+        status: "Pending Guardian Review", // Changed from Unverified to Queue
+        deviceId: deviceId,
+        userIp: userIp,
+        trustScore: calculatedTrustScore,
+        isSpamFlagged: false,
+
         language: lang, 
         requiresAgent: requestGuardian, 
         bountyAmount: requestGuardian ? (bounty || "0") : "0", 
@@ -234,8 +314,7 @@ export default function Home() {
         evidenceName: evidence ? evidence.name : null,
         evidenceVisibility: "Restricted to Admin/Police Only",
         
-        // CHAT FEATURE DEFAULTS
-        chatEnabled: true, // Note: Set to true for demo purposes. In production, Admin enables this.
+        chatEnabled: false, // Default to false, police must enable it
         messages: []
       });
       
@@ -246,6 +325,7 @@ export default function Home() {
       setBounty(''); 
       setRequestGuardian(false); 
       setEvidence(null);
+      refreshCaptcha();
     } catch (error) { 
       alert('Error'); 
       setLoadingReport(false); 
@@ -258,7 +338,6 @@ export default function Home() {
       const q = query(collection(db, "reports"), where("trackingId", "==", trackInput.trim().toUpperCase()));
       const snap = await getDocs(q);
       if (!snap.empty) {
-        // Save the document ID along with data so we can update it later
         setTrackResult({ docId: snap.docs[0].id, ...snap.docs[0].data() });
       } else {
         setTrackError(lang==='ta' ? "எண் காணப்படவில்லை" : "ID Not Found");
@@ -266,7 +345,6 @@ export default function Home() {
     } catch (err) { setTrackError("Error"); }
   };
 
-  // SEND CHAT MESSAGE
   const handleSendMessage = async () => {
     if(!chatInput.trim() || !trackResult?.docId) return;
     
@@ -281,7 +359,6 @@ export default function Home() {
         messages: arrayUnion(newMsg)
       });
       
-      // Update local state to show message instantly
       setTrackResult(prev => ({
         ...prev,
         messages: [...(prev.messages || []), newMsg]
@@ -335,6 +412,7 @@ export default function Home() {
               escalationStage: "Level 1: Family Alerted",
               timestamp: new Date(), 
               status: "URGENT ALERT", 
+              deviceId: deviceId, // Tracking ride guard device too
               language: "en" 
           }); 
           setRideReportId(docRef.id); 
@@ -430,7 +508,6 @@ export default function Home() {
                   <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-2">{t.catLabel}</label>
                   <div className={`transition-all duration-300 ${aiSuggestion ? 'mb-2 p-2 bg-purple-50 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 text-xs font-bold rounded-lg border border-purple-200 dark:border-purple-800' : 'h-0 overflow-hidden'}`}>{aiSuggestion}</div>
                   
-                  {/* EXPANDED DROPDOWN MENU */}
                   <select value={category} onChange={(e) => setCategory(e.target.value)} className="w-full bg-slate-50 dark:bg-slate-800 p-4 rounded-xl font-bold text-slate-700 dark:text-slate-200 text-base appearance-none border border-slate-200 dark:border-slate-700 outline-none">
                       <optgroup label={t.urgentGrp}>
                         <option value="Harassment / Eve Teasing">{lang === 'ta' ? CATEGORY_TRANSLATIONS["Harassment / Eve Teasing"] : "Harassment / Eve Teasing"}</option>
@@ -520,6 +597,22 @@ export default function Home() {
 
                 <div className="rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-700 shadow-inner"><MapPicker location={location} setLocation={setLocation} /></div>
                 
+                {/* NEW SECURITY CAPTCHA PUZZLE */}
+                <div className="bg-slate-100 dark:bg-slate-800 p-4 rounded-xl border border-slate-200 dark:border-slate-700 flex items-center justify-between gap-4">
+                  <div className="flex-1">
+                    <label className="text-xs font-bold text-slate-500 uppercase block mb-1">{t.captchaLabel}</label>
+                    <div className="text-lg font-black text-slate-800 dark:text-white tracking-widest">{captchaNum1} + {captchaNum2} = ?</div>
+                  </div>
+                  <input 
+                    type="number" 
+                    value={captchaInput} 
+                    onChange={(e) => setCaptchaInput(e.target.value)} 
+                    placeholder="Answer" 
+                    className="w-24 bg-white dark:bg-slate-900 p-3 rounded-lg text-center font-bold border border-slate-300 dark:border-slate-600 outline-none focus:ring-2 focus:ring-blue-500 dark:text-white"
+                    required
+                  />
+                </div>
+
                 <button type="submit" disabled={loadingReport || blockSubmit} className="w-full bg-slate-900 dark:bg-white text-white dark:text-slate-900 py-5 rounded-2xl font-bold text-lg shadow-xl hover:scale-[1.02] active:scale-[0.98] transition disabled:opacity-50 disabled:bg-slate-400">{loadingReport ? t.loadingText : t.submitBtn}</button>
               </form>
             )}
@@ -534,7 +627,7 @@ export default function Home() {
                   <div className="mt-8 bg-white dark:bg-slate-800 p-6 rounded-2xl border border-slate-100 dark:border-slate-700 shadow-lg">
                     <div className="flex justify-between items-center mb-4">
                       <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">Status</span>
-                      <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase ${trackResult.status === 'Verified' ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400' : 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400'}`}>{trackResult.status}</span>
+                      <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase ${trackResult.status.includes('Verified') ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400' : trackResult.status.includes('Review') ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400' : 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400'}`}>{trackResult.status}</span>
                     </div>
                     <p className="text-slate-600 dark:text-slate-300 italic mb-6">"{trackResult.adminNote || (lang === 'ta' ? "பரிசீலனையில் உள்ளது..." : "Pending Review...")}"</p>
                     
