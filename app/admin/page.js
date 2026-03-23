@@ -55,6 +55,21 @@ export default function AdminPanel() {
     const note = prompt("Enter Note:", currentNote || "");
     if (note) { await updateDoc(doc(db, "reports", id), { adminNote: note }); fetchData(); }
   };
+  const handleRequestVerification = async (id) => {
+    if(!confirm("Request official Aadhaar verification from the reporter?")) return;
+    
+    // Updates the database to flag that verification is needed, and sends an automated system message.
+    await updateDoc(doc(db, "reports", id), { 
+      verificationRequested: true,
+      messages: arrayUnion({
+        sender: "System Command",
+        text: "⚠️ Identity verification requested by Admin. Please check your tracking portal to verify securely.",
+        timestamp: new Date().toISOString()
+      })
+    });
+    alert("Verification request sent to victim.");
+    fetchData();
+  };
 
   const handleToggleChat = async (id, currentStatus) => {
     await updateDoc(doc(db, "reports", id), { chatEnabled: !currentStatus });
@@ -178,28 +193,44 @@ export default function AdminPanel() {
           {reports.map((r) => (
             <div key={r.id} className="bg-white dark:bg-slate-900 p-6 rounded-2xl shadow-sm border-l-4 border-blue-900 dark:border-blue-500 hover:shadow-md transition">
                
-               {/* TOP HEADER: ID, Category, Status */}
-               <div className="flex justify-between items-start">
-                   <div>
-                       <span className="text-[10px] font-mono bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded text-slate-500 dark:text-slate-400">ID: {r.trackingId}</span>
-                       <h2 className="font-bold text-red-600 dark:text-red-400 text-lg mt-1">{r.category} <span className="text-slate-400 dark:text-slate-500 font-normal text-base">in {r.area}</span></h2>
-                   </div>
-                   <div className="text-right">
-                       <span className="text-xs bg-slate-100 dark:bg-slate-800 px-3 py-1 rounded-full font-bold uppercase tracking-wider dark:text-slate-300">{r.status}</span>
-                       {r.hasEvidence && <div className="mt-2 text-[10px] bg-green-100 text-green-700 px-2 py-1 rounded font-bold">📎 Evidence Attached</div>}
-                   </div>
-               </div>
-               
-               {/* DESCRIPTION */}
-               <p className="text-slate-700 dark:text-slate-300 mt-3 text-sm leading-relaxed">{r.description}</p>
-               
-               {/* ACTION BUTTONS */}
-               <div className="mt-5 flex flex-wrap gap-2 border-t border-slate-100 dark:border-slate-800 pt-4">
-                 <button onClick={()=>handleUpdateStatus(r.id, "Verified")} className="bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-400 px-4 py-2 rounded-lg text-xs font-bold border border-green-100 dark:border-green-800 hover:bg-green-100 dark:hover:bg-green-900/50">✅ Verify</button>
-                 <button onClick={()=>handleUpdateStatus(r.id, "False Alarm")} className="bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-400 px-4 py-2 rounded-lg text-xs font-bold border border-red-100 dark:border-red-800 hover:bg-red-100 dark:hover:bg-red-900/50">❌ False Alarm</button>
-                 <button onClick={()=>handleUpdateStatus(r.id, "Resolved")} className="bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 px-4 py-2 rounded-lg text-xs font-bold border border-blue-100 dark:border-blue-800 hover:bg-blue-100 dark:hover:bg-blue-900/50">🏁 Resolved</button>
-                 <button onClick={()=>handleAddNote(r.id, r.adminNote)} className="bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 px-4 py-2 rounded-lg text-xs font-bold hover:bg-slate-200 dark:hover:bg-slate-700 ml-auto">📝 Add Official Note</button>
-               </div>
+              {/* TOP HEADER: ID, Category, Status */}
+<div className="flex justify-between items-start">
+    <div>
+        <span className="text-[10px] font-mono bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded text-slate-500 dark:text-slate-400">ID: {r.trackingId}</span>
+        
+        {/* NEW: Verified Citizen Badge */}
+        {r.verificationStatus === 'Verified' && (
+            <span className="ml-2 text-[10px] bg-blue-100 text-blue-800 px-2 py-1 rounded font-bold border border-blue-300">
+                ✓ VERIFIED CITIZEN
+            </span>
+        )}
+        
+        <h2 className="font-bold text-red-600 dark:text-red-400 text-lg mt-1">{r.category} <span className="text-slate-400 dark:text-slate-500 font-normal text-base">in {r.area}</span></h2>
+    </div>
+    {/* ... rest of your header code ... */}
+</div>
+
+{/* ... DESCRIPTION CODE ... */}
+
+{/* ACTION BUTTONS */}
+<div className="mt-5 flex flex-wrap gap-2 border-t border-slate-100 dark:border-slate-800 pt-4">
+  <button onClick={()=>handleUpdateStatus(r.id, "Verified")} className="bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-400 px-4 py-2 rounded-lg text-xs font-bold border border-green-100 dark:border-green-800 hover:bg-green-100 dark:hover:bg-green-900/50">✅ Verify</button>
+  <button onClick={()=>handleUpdateStatus(r.id, "False Alarm")} className="bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-400 px-4 py-2 rounded-lg text-xs font-bold border border-red-100 dark:border-red-800 hover:bg-red-100 dark:hover:bg-red-900/50">❌ False Alarm</button>
+  
+  {/* NEW: Request ID Verification Button */}
+  {!r.verificationStatus && (
+      <button 
+        onClick={() => handleRequestVerification(r.id)} 
+        disabled={r.verificationRequested} 
+        className="bg-purple-50 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400 px-4 py-2 rounded-lg text-xs font-bold border border-purple-100 dark:border-purple-800 hover:bg-purple-100 disabled:opacity-50"
+      >
+        {r.verificationRequested ? "⏳ Verification Pending" : "🛡️ Request ID Verification"}
+      </button>
+  )}
+  
+  <button onClick={()=>handleUpdateStatus(r.id, "Resolved")} className="bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 px-4 py-2 rounded-lg text-xs font-bold border border-blue-100 dark:border-blue-800 hover:bg-blue-100 dark:hover:bg-blue-900/50">🏁 Resolved</button>
+  <button onClick={()=>handleAddNote(r.id, r.adminNote)} className="bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 px-4 py-2 rounded-lg text-xs font-bold hover:bg-slate-200 dark:hover:bg-slate-700 ml-auto">📝 Add Official Note</button>
+</div>
                
                {/* ADMIN NOTE DISPLAY */}
                {r.adminNote && (
